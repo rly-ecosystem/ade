@@ -1,4 +1,5 @@
 'use strict';
+const { desktopPage, resizeDesktop } = require('./ui-helpers.cjs');
 const { _electron: electron } = require('playwright');
 const { DatabaseSync } = require('node:sqlite');
 const assert = require('node:assert/strict');
@@ -17,7 +18,7 @@ let app;
 (async () => {
   const executablePath = process.env.ADE_TEST_EXECUTABLE;
   app = await electron.launch({ ...(executablePath ? { executablePath, args: [] } : { args: [path.join(root,'apps/desktop')] }), env: { ...process.env, ADE_USER_DATA: userData, PATH: bin + path.delimiter + process.env.PATH } });
-  const page = await app.firstWindow(), errors=[];
+  const page = await desktopPage(app), errors=[];
   page.on('pageerror', e=>errors.push(e.message));
   await page.getByRole('heading',{name:'Что будем делать?'}).waitFor();
   const open = () => page.getByRole('button',{name:'Статистика',exact:true}).click();
@@ -56,7 +57,7 @@ let app;
   await page.getByRole('combobox',{name:'Тема'}).selectOption('light');
   await open(); await stats.getByText('Замерено запусков · 4 из 5',{exact:true}).waitFor();
   await page.screenshot({path:path.join(root,'logs/insights-light.png'),animations:'disabled'});
-  await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];w.setMinimumSize(320,480);w.setSize(320,720);});
+  await resizeDesktop(app, page, 320, 720);
   await page.emulateMedia({reducedMotion:'reduce'});
   await stats.getByRole('button',{name:'30 дней'}).click();
   await stats.getByText('Замерено запусков · 6 из 7',{exact:true}).waitFor();

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { trustProject } = require('./ui-helpers.cjs');
+const { trustProject, desktopPage, resizeDesktop } = require('./ui-helpers.cjs');
 
 const root = path.resolve(__dirname, '..');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ade-desktop-'));
@@ -31,7 +31,7 @@ let app;
 async function launch() {
   const executablePath = process.env.ADE_TEST_EXECUTABLE;
   app = await electron.launch({ ...(executablePath ? { executablePath, args: [] } : { args: [path.join(root, 'apps', 'desktop')] }), env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, ADE_USER_DATA: userData } });
-  const page = await app.firstWindow();
+  const page = await desktopPage(app);
   page.on('pageerror', error => errors.push(error.message));
   await page.getByRole('heading', { name: 'Что будем делать?' }).waitFor();
   return page;
@@ -165,7 +165,7 @@ async function run() {
   await page.getByRole('heading', { name: 'Черновик клавиатурой', exact: true }).waitFor();
   checks.push('project search and navigation; keyboard task submission');
 
-  await app.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows()[0]; win.setMinimumSize(320, 480); win.setSize(390, 720); });
+  await resizeDesktop(app, page, 390, 720);
   await page.getByRole('button', { name: 'Показать проекты', exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('button', { name: 'Показать проекты', exact: true }).click();
   assert.equal(await page.getByRole('dialog', { name: 'Навигация', exact: true }).isVisible(), true);
@@ -178,7 +178,7 @@ async function run() {
   await page.screenshot({ path: path.join(root, 'logs', 'desktop-narrow.png') });
   checks.push('390px layout; keyboard menu and Escape; no horizontal document overflow');
 
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 860));
+  await resizeDesktop(app, page, 1280, 860);
   await page.getByRole('button', { name: 'Новая задача', exact: true }).click();
   await page.screenshot({ path: path.join(root, 'logs', 'desktop-home.png') });
   assert.deepEqual(errors, []);

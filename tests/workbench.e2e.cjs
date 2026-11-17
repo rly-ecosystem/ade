@@ -2,7 +2,7 @@
 const { _electron: electron } = require('playwright');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 const {execFileSync}=require('node:child_process');
-const {showInspector,openDetails,trustProject}=require('./ui-helpers.cjs');
+const { showInspector,openDetails,trustProject, desktopPage, resizeDesktop } = require('./ui-helpers.cjs');
 const root=path.resolve(__dirname,'..'),directory=fs.mkdtempSync(path.join(os.tmpdir(),'ade-workbench-')),repo=path.join(directory,'project'),bin=path.join(directory,'bin');
 fs.mkdirSync(bin);execFileSync('git',['init','-b','main',repo],{stdio:'ignore'});
 for(const provider of ['codex','claude']){fs.copyFileSync(path.join(__dirname,'fixtures','cli.cjs'),path.join(bin,provider));fs.chmodSync(path.join(bin,provider),0o755);}
@@ -10,7 +10,7 @@ let app;
 (async()=>{
  const executablePath=process.env.ADE_TEST_EXECUTABLE;
  app=await electron.launch({...(executablePath?{executablePath,args:[]}:{args:[path.join(root,'apps','desktop')]}),env:{...process.env,PATH:bin+path.delimiter+process.env.PATH,ADE_USER_DATA:path.join(directory,'user-data')}});
- const page=await app.firstWindow(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+ const page=await desktopPage(app),errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.getByRole('heading',{name:'Что будем делать?'}).waitFor();
  await app.evaluate(({dialog},repo)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[repo]});},repo);
  await page.getByRole('button',{name:'Подключить проект',exact:true}).click();
@@ -74,7 +74,7 @@ let app;
  state=await getState();assert.equal(state.runs.length,5);assert.equal(state.runs.at(-1).role,'reviewer');assert.equal(state.acceptance.stale,false);assert.equal(state.acceptance.runId,state.runs.at(-1).id);
  await page.locator('.local-execution').evaluate(el=>el.scrollTop=el.scrollHeight);
  await page.screenshot({path:path.join(root,'logs','workbench-accepted.png')});
- await app.evaluate(({BrowserWindow})=>{const win=BrowserWindow.getAllWindows()[0];win.setMinimumSize(320,480);win.setSize(320,720)});
+ await resizeDesktop(app, page, 320, 720);
  await page.getByRole('button',{name:'Показать проекты',exact:true}).waitFor({state:'visible'});
  await page.waitForFunction(()=>document.querySelector('.task-inspector-toggle')?.getAttribute('aria-expanded')==='false');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
@@ -99,7 +99,7 @@ let app;
  await page.waitForFunction(()=>document.querySelector('.local-task-phase')?.textContent==='Результат принят');
  state=await getState();assert.equal(state.task.archived,false);assert.equal(state.runs.length,5);assert.equal(state.acceptance.stale,false);
  const acceptedState=state;
- await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1280,860));
+ await resizeDesktop(app, page, 1280, 860);
  await page.getByRole('textbox',{name:'Сообщение',exact:true}).fill('[PARALLEL_HOLD] Check parallel Stop');
  await page.getByRole('button',{name:'Сохранить сообщение',exact:true}).click();
  await showInspector(page);

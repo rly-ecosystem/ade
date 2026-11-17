@@ -1,6 +1,26 @@
 'use strict';
 
+async function resizeDesktop(app, page, width, height, zoom = 1) {
+  await app.evaluate(({ BrowserWindow }, size) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    window.setMinimumSize(320, 480);
+    window.setContentSize(size.width, size.height);
+    window.webContents.setZoomFactor(size.zoom);
+  }, { width, height, zoom });
+  // The macOS runner may clamp native windows to its 1024px display.
+  const viewport = { width: Math.round(width / zoom), height: Math.round(height / zoom) };
+  await page.setViewportSize(viewport);
+  await page.waitForFunction(expected => innerWidth === expected, viewport.width);
+}
+
+async function desktopPage(app) {
+  const page = await app.firstWindow();
+  await resizeDesktop(app, page, 1280, 860);
+  return page;
+}
+
 async function trustProject(page) {
+  await showInspector(page);
   // Trust removes its own checkbox; check() cannot verify that detached input.
   await page.getByRole('checkbox', { name: /Доверяю проекту/ }).click();
   await page.locator('.local-trust').waitFor({ state: 'hidden' });
@@ -17,4 +37,4 @@ async function openDetails(page, selector) {
   if (!await details.evaluate(element => element.open)) await details.locator(':scope > summary').click();
 }
 
-module.exports = { showInspector, openDetails, trustProject };
+module.exports = { desktopPage, resizeDesktop, showInspector, openDetails, trustProject };

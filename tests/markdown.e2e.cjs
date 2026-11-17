@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { execFileSync } = require('node:child_process');
-const { trustProject } = require('./ui-helpers.cjs');
+const { trustProject, desktopPage, resizeDesktop } = require('./ui-helpers.cjs');
 const root = path.resolve(__dirname, '..'), directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ade-markdown-'));
 const repo = path.join(directory, 'repo'), bin = path.join(directory, 'bin');
 fs.mkdirSync(bin); fs.mkdirSync(path.join(root, 'logs'), { recursive: true });
@@ -15,7 +15,7 @@ let app;
 async function run() {
   const executablePath = process.env.ADE_TEST_EXECUTABLE;
   app = await electron.launch({ ...(executablePath ? { executablePath, args: [] } : { args: [path.join(root, 'apps', 'desktop')] }), env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, ADE_USER_DATA: path.join(directory, 'user-data') } });
-  const page = await app.firstWindow(), errors = [];
+  const page = await desktopPage(app), errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.getByRole('heading', { name: 'Что будем делать?' }).waitFor();
   await app.evaluate(({ dialog, shell, clipboard }, repo) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [repo] }); shell.openExternal = async url => { globalThis.lastOpenedTestUrl = url; }; clipboard.writeText = value => { globalThis.copiedTestText = value; }; clipboard.readText = () => globalThis.copiedTestText; }, repo);
@@ -59,7 +59,7 @@ async function run() {
   await page.getByRole('button', { name: /FIXTURE_STREAM/ }).click();
   await page.locator('.local-code-block').waitFor();
   await page.screenshot({ path: path.join(root, 'logs', 'markdown-light.png') });
-  await app.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows()[0]; win.setMinimumSize(320, 480); win.setSize(390, 720); });
+  await resizeDesktop(app, page, 390, 720);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.deepEqual(errors, []);
   fs.writeFileSync(path.join(root, 'logs', 'markdown-verification.json'), JSON.stringify({ passed: true, packaged: !!executablePath, checks: ['partial Markdown visible before completion', 'unfinished code fence renders while streaming', 'scroll position and code DOM persist across chunks', 'headings/emphasis/lists/tables/quotes/highlighting', 'raw HTML and dangerous links inert; no remote images', 'copy exact code and explicit HTTP link', 'both themes and narrow layout'], errors }, null, 2));

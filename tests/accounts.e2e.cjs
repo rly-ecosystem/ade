@@ -2,7 +2,7 @@
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
-const { trustProject, showInspector } = require('./ui-helpers.cjs');
+const { trustProject, showInspector, desktopPage, resizeDesktop } = require('./ui-helpers.cjs');
 const root = path.resolve(__dirname, '..'), directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ade-accounts-ui-'));
 const bin = path.join(directory, 'bin'), repo = path.join(directory, 'project'), userData = path.join(directory, 'data'), global = path.join(directory, 'shared');
 for (const folder of [bin, repo, global]) fs.mkdirSync(folder);
@@ -12,7 +12,7 @@ const errors = [], checks = []; let app;
 async function launch() {
   const executablePath = process.env.ADE_TEST_EXECUTABLE;
   app = await electron.launch({ ...(executablePath ? { executablePath, args: [] } : { args: [path.join(root, 'apps/desktop')] }), env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, ADE_USER_DATA: userData, CODEX_HOME: global, CLAUDE_CONFIG_DIR: global } });
-  const page = await app.firstWindow(); page.on('pageerror', error => errors.push(error.message));
+  const page = await desktopPage(app); page.on('pageerror', error => errors.push(error.message));
   await page.getByRole('heading', { name: 'Что будем делать?', exact: true }).waitFor();
   await app.evaluate(({ shell }) => { shell.openExternal = async url => { globalThis.lastAuthTestUrl = url; }; });
   return page;
@@ -93,16 +93,15 @@ async function pick(page, name) { await page.getByRole('navigation', { name: 'А
   await page.getByRole('button', { name: 'Профили AI', exact: true }).click();
   await details(page).getByRole('heading', { name: b.name, exact: true }).waitFor();
   await page.screenshot({ path: path.join(root, 'logs/accounts-light.png'), animations: 'disabled' });
-  await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.setMinimumSize(320, 480); window.setSize(320, 720); });
+  await resizeDesktop(app, page, 320, 720);
   await pick(page, a.name); assert.equal(await details(page).getByRole('heading', { name: a.name, exact: true }).evaluate(element => element === document.activeElement), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: path.join(root, 'logs/accounts-320.png') });
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1200, 860));
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(2));
+  await resizeDesktop(app, page, 1200, 860, 2);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.screenshot({ path: path.join(root, 'logs/accounts-zoom.png') });
-  await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.webContents.setZoomFactor(1); window.setSize(1280, 860); });
+  await resizeDesktop(app, page, 1280, 860);
   checks.push('remembered profile; light/dark; 320px focus and reflow; 200% zoom; reduced motion');
 
   await page.getByRole('button', { name: 'Новая задача', exact: true }).click();

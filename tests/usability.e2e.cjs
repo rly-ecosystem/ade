@@ -1,4 +1,5 @@
 'use strict';
+const { desktopPage, resizeDesktop } = require('./ui-helpers.cjs');
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
@@ -14,7 +15,7 @@ let app;
 async function launch() {
   const executablePath = process.env.ADE_TEST_EXECUTABLE;
   app = await electron.launch({ ...(executablePath ? { executablePath, args: [] } : { args: [path.join(root, 'apps', 'desktop')] }), env: { ...process.env, PATH: bin + path.delimiter + process.env.PATH, ADE_USER_DATA: userData } });
-  const page = await app.firstWindow();
+  const page = await desktopPage(app);
   page.on('pageerror', error => errors.push(error.message));
   await page.getByRole('heading', { name: 'Что будем делать?', exact: true }).waitFor();
   return page;
@@ -23,9 +24,6 @@ async function openTask(page, title) {
   await page.getByRole('navigation', { name: 'Разделы', exact: true }).getByRole('button', { name: 'Задачи', exact: true }).click();
   await page.getByRole('button', { name: new RegExp(title) }).click();
   await page.getByRole('heading', { name: title, exact: true }).waitFor();
-}
-async function narrow() {
-  await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.setMinimumSize(320, 480); window.setSize(320, 720); });
 }
 async function sidebarChecks(page) {
   const toggle = page.getByRole('button', { name: 'Показать проекты', exact: true });
@@ -124,7 +122,7 @@ async function sidebarChecks(page) {
     await page.getByRole('button', { name: 'Настройки', exact: true }).click();
     await page.getByRole('combobox', { name: 'Тема', exact: true }).selectOption(theme);
     await openTask(page, 'Первая задача');
-    await narrow(); await sidebarChecks(page);
+    await resizeDesktop(app, page, 320, 720); await sidebarChecks(page);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     contrast.push(await page.evaluate(theme => {
       const luminance = rgb => rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map(c => { c /= 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; }).reduce((sum, c, i) => sum + c * [.2126, .7152, .0722][i], 0);
@@ -135,7 +133,7 @@ async function sidebarChecks(page) {
     await page.screenshot({ path: path.join(root, 'logs', 'usability-' + theme + '-320.png') });
     await page.getByRole('button', { name: 'Показать проекты', exact: true }).click();
     await page.screenshot({ path: path.join(root, 'logs', 'usability-' + theme + '-navigation.png') });
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 860));
+    await resizeDesktop(app, page, 1280, 860);
     await page.waitForFunction(() => !document.querySelector('.content').inert);
     await page.getByRole('navigation', { name: 'Разделы', exact: true }).getByRole('button', { name: 'Задачи', exact: true }).click();
     await page.getByRole('button', { name: /Первая задача/ }).click();
@@ -143,7 +141,7 @@ async function sidebarChecks(page) {
   assert.ok(contrast.every(pair => pair.text >= 4.5 && pair.muted >= 4.5));
   checks.push('both themes: modal semantics; focus trap; Escape/button/backdrop; focus return; 320px; expand to desktop; measured text contrast');
 
-  await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.setSize(1200, 860); window.webContents.setZoomFactor(2); });
+  await resizeDesktop(app, page, 1200, 860, 2);
   await sidebarChecks(page);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.emulateMedia({ reducedMotion: 'reduce' });
