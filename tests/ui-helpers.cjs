@@ -8,9 +8,8 @@ async function resizeDesktop(app, page, width, height, zoom = 1) {
     window.webContents.setZoomFactor(size.zoom);
   }, { width, height, zoom });
   // The macOS runner may clamp native windows to its 1024px display.
-  const viewport = { width: Math.round(width / zoom), height: Math.round(height / zoom) };
-  await page.setViewportSize(viewport);
-  await page.waitForFunction(expected => innerWidth === expected, viewport.width);
+  await page.setViewportSize({ width, height });
+  await page.waitForFunction(expected => innerWidth === expected, Math.round(width / zoom));
 }
 
 async function desktopPage(app) {
