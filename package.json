@@ -1,0 +1,46 @@
+{
+  "name": "rly-ade",
+  "version": "0.6.0",
+  "private": true,
+  "description": "RLY ADE local desktop runtime",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "start": "npm run build && electron apps/desktop",
+    "test": "node scripts/build.mjs --tests && node --test build/runtime.test.cjs",
+    "test:desktop": "node tests/desktop.e2e.cjs",
+    "test:live": "node tests/providers.live.cjs",
+    "test:markdown": "node tests/markdown.e2e.cjs",
+    "package": "npm run build && node scripts/package.mjs",
+    "test:routing": "node tests/routing.e2e.cjs",
+    "test:routing:live": "node tests/routing.live.cjs",
+    "test:gui": "node scripts/verify-gui.mjs",
+    "test:workbench": "node tests/workbench.e2e.cjs",
+    "test:usability": "node tests/usability.e2e.cjs",
+    "test:accounts": "node scripts/build.mjs --accounts && node --test build/accounts.test.cjs",
+    "test:accounts:gui": "node tests/accounts.e2e.cjs",
+    "test:workbench:live": "node tests/workbench.live.cjs",
+    "test:insights:gui": "node tests/insights.e2e.cjs"
+  },
+  "dependencies": {
+    "jose": "6.2.17",
+    "marked": "18.2.0",
+    "prismjs": "1.30.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/prismjs": "1.26.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.2.3",
+    "electron": "45.3.3",
+    "esbuild": "0.28.2",
+    "playwright": "1.65.1",
+    "typescript": "7.0.2"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,117 @@
+#rly-tree .local-page-task { overflow:hidden; }
+#rly-tree .local-task-head { flex-shrink:0; padding:12px 24px; gap:16px; min-height:70px; }
+#rly-tree .task-heading { flex:1; min-width:0; }
+#rly-tree .task-heading h1 { font-size:14px; line-height:1.5; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#rly-tree .task-heading .local-task-phase { margin:3px 0 0; font-size:11px; line-height:1.5; animation:task-state-change 180ms ease-out; }
+#rly-tree .task-head-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+#rly-tree .task-head-actions .button { min-height:32px; font-size:12px; padding:6px 9px; }
+#rly-tree .task-inspector-toggle[aria-expanded=true] { background:var(--hover); }
+#rly-tree .task-attention-count { font-variant-numeric:tabular-nums; font-weight:600; }
+#rly-tree .task-layout { display:grid; grid-template-columns:minmax(0,1fr); flex:1; min-height:0; overflow:hidden; }
+#rly-tree .task-layout[data-inspector-open=true] { grid-template-columns:minmax(0,1fr) 336px; }
+#rly-tree .task-chat { display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; }
+#rly-tree .task-chat .local-messages { padding:28px 28px 12px; }
+#rly-tree .task-chat .local-task-bottom { flex-shrink:0; padding:12px 28px 20px; }
+#rly-tree .task-chat .local-task-bottom .home-composer { margin-bottom:0; padding:14px 16px 10px; box-shadow:0 2px 10px #0001; }
+#rly-tree .task-chat .local-task-bottom textarea { min-height:44px; max-height:120px; }
+#rly-tree .task-chat .home-controls { margin-top:6px; }
+#rly-tree .task-chat .draft-label { font-size:10px; }
+#rly-tree .task-inspector { display:flex; flex-direction:column; min-height:0; min-width:0; border-left:1px solid var(--line); background:var(--side); animation:task-inspector-open 180ms cubic-bezier(.16,1,.3,1); }
+#rly-tree .task-inspector-head { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; padding:12px 16px; border-bottom:1px solid var(--line); }
+#rly-tree .task-inspector-head h2 { margin:0; font-size:13px; font-weight:500; }
+#rly-tree .task-inspector .local-execution { flex:1; min-height:0; max-height:none; padding:16px; border-bottom:0; overflow:auto; scrollbar-gutter:stable; }
+#rly-tree .task-inspector .local-workflow { padding:0 0 16px; }
+#rly-tree .task-inspector .workbench-heading { align-items:center; gap:12px; }
+#rly-tree .task-inspector .workbench-heading h2 { font-size:12px; }
+#rly-tree .task-inspector .button { min-height:32px; font-size:12px; border-radius:6px; padding:6px 10px; }
+#rly-tree .local-app .button-primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+#rly-tree .local-app .button-primary:hover:not(:disabled) { opacity:.88; }
+#rly-tree .task-inspector .role-progress { display:flex; flex-direction:column; gap:0; margin:20px 0 12px; }
+#rly-tree .task-inspector .role-progress li { position:relative; display:grid; grid-template-columns:24px minmax(0,1fr); gap:12px; border:0; padding:0 0 20px; }
+#rly-tree .task-inspector .role-progress li:last-child { padding-bottom:0; }
+#rly-tree .task-inspector .role-progress li:not(:last-child)::after { content:''; position:absolute; top:27px; bottom:5px; left:11px; width:1px; background:var(--line); }
+#rly-tree .task-inspector .role-mark { display:grid; place-items:center; width:24px; height:24px; border:1px solid var(--line); border-radius:50%; margin:0; color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; background:var(--side); }
+#rly-tree .task-inspector .role-mark .lucide { width:14px; height:14px; }
+#rly-tree .task-inspector .role-progress strong { font-size:12px; line-height:1.5; }
+#rly-tree .task-inspector .role-progress li>div { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:8px; }
+#rly-tree .task-inspector .role-progress div>span { grid-column:1/-1; margin-top:2px; font-size:11px; }
+#rly-tree .task-inspector .role-state { grid-column:2; grid-row:1; max-width:12ch; text-align:right; color:var(--muted); font-size:11px; line-height:1.5; }
+#rly-tree .task-inspector .role-progress [data-current=true] .role-mark { border-color:light-dark(#315d80,#a9c9e8); color:var(--fg); animation:task-role-enter 220ms cubic-bezier(.16,1,.3,1); }
+#rly-tree .task-inspector .role-progress [data-current=true] .role-state { color:var(--fg); }
+#rly-tree .task-inspector .role-progress [data-state=done] .role-mark { background:var(--hover); color:var(--fg); }
+#rly-tree .task-inspector .role-progress [data-state=done] .role-mark path { stroke-dasharray:24; stroke-dashoffset:0; animation:task-role-done 220ms ease-out; }
+#rly-tree .task-inspector .role-handoff-note { font-size:11px; margin:8px 0 12px; }
+#rly-tree .task-inspector .workflow-state { margin-top:12px; }
+#rly-tree .task-inspector .role-assignment { grid-template-columns:104px minmax(0,1fr); gap:8px; padding:12px 0; }
+#rly-tree .task-inspector .role-assignment>span { grid-column:1/-1; }
+#rly-tree .task-inspector .role-assignment small { font-size:11px; }
+#rly-tree .task-inspector .role-assignment label { font-size:11px; }
+#rly-tree .workflow-options { display:grid; gap:10px; margin:12px 0; }
+#rly-tree .workflow-options label { display:flex; align-items:center; gap:8px; font-size:12px; }
+#rly-tree .task-inspector .parallel-live { margin:12px 0; font-size:12px; color:var(--fg); }
+#rly-tree .workflow-exchange { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
+#rly-tree .workflow-exchange h3 { margin:0 0 10px; font-size:12px; font-weight:500; }
+#rly-tree .handoff-record { padding:8px 0; border-bottom:1px solid var(--line); }
+#rly-tree .handoff-record>summary { cursor:pointer; font-size:12px; color:var(--muted); padding:4px 0; }
+#rly-tree .handoff-record>summary strong { color:var(--fg); font-weight:500; }
+#rly-tree .handoff-record>summary span { display:block; font-size:11px; padding-left:14px; margin-top:3px; }
+#rly-tree .handoff-record :is(p,li) { font-size:12px; line-height:1.6; overflow-wrap:anywhere; margin-top:8px; }
+#rly-tree .handoff-record ul { padding-left:18px; }
+#rly-tree .handoff-record>summary:focus-visible { outline:2px solid light-dark(#315d80,#a9c9e8); outline-offset:3px; }
+#rly-tree .workflow-budget { padding-top:16px; font-size:12px; font-variant-numeric:tabular-nums; }
+#rly-tree .workflow-budget p { margin:6px 0; line-height:1.6; overflow-wrap:anywhere; }
+#rly-tree .task-inspector .role-assignments>summary { padding:6px 0; }
+#rly-tree .task-inspector .workbench-tools { margin:0; padding:0; border:0; }
+#rly-tree .task-inspector .local-verification { padding:14px 0; }
+#rly-tree .task-inspector .local-verification>summary { color:var(--fg); }
+#rly-tree .task-inspector .verification-command { font-size:12px; }
+#rly-tree .task-inspector .verification-command textarea { min-height:64px; }
+#rly-tree .task-inspector .verification-record { margin:8px 0; }
+#rly-tree .task-inspector .verification-record pre { font-size:11px; }
+#rly-tree .task-inspector .acceptance-controls { display:grid; justify-items:start; gap:12px; }
+#rly-tree .task-inspector .acceptance-controls .local-muted { margin:0; }
+#rly-tree .task-inspector .acceptance-controls .verification-command { width:100%; margin:0; }
+#rly-tree .task-inspector .local-direct-run { border-top:1px solid var(--line); padding:14px 0; }
+#rly-tree .local-direct-run>summary { cursor:pointer; color:var(--muted); font-size:12px; padding:4px 0; }
+#rly-tree .local-direct-run>summary:hover { color:var(--fg); }
+#rly-tree .local-direct-run>summary:focus-visible { outline:2px solid light-dark(#315d80,#a9c9e8); outline-offset:3px; }
+#rly-tree .task-inspector .local-execution-row { display:grid; grid-template-columns:104px minmax(0,1fr); gap:10px; margin-top:12px; }
+#rly-tree .task-inspector .local-execution-row :is(input,select) { width:100%; max-width:none; }
+#rly-tree .task-inspector .local-execution-row>.button { grid-column:1/-1; justify-self:start; margin-left:0; }
+#rly-tree .task-inspector .local-route-settings { grid-template-columns:minmax(0,1fr); gap:12px; }
+#rly-tree .task-inspector .local-run-history li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; padding:8px 0; }
+#rly-tree .task-inspector .local-run-history small { grid-column:1/-1; }
+#rly-tree .task-inspector .local-trust { margin:0 0 20px; }
+#rly-tree .task-inspector .local-trust small { margin-top:4px; }
+#rly-tree .task-approvals { margin-bottom:20px; }
+#rly-tree .approval-heading { font-size:12px; font-weight:500; margin:0; }
+#rly-tree .task-inspector .local-approval { padding:12px; margin-top:12px; }
+#rly-tree .task-inspector .local-approval pre { max-height:160px; }
+#rly-tree .local-app :is(.button,.icon-btn,.role-mark) { transition:background-color 120ms ease-out,color 120ms ease-out,border-color 120ms ease-out; }
+@keyframes task-inspector-open { from { opacity:.5; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+@keyframes task-state-change { from { opacity:.5; } to { opacity:1; } }
+@keyframes task-role-enter { from { transform:scale(.88); } to { transform:scale(1); } }
+@keyframes task-role-done { from { stroke-dashoffset:24; } to { stroke-dashoffset:0; } }
+@media (max-width:1099px) {
+  #rly-tree .task-layout[data-inspector-open=true] { grid-template-columns:minmax(0,1fr); }
+  #rly-tree .task-layout[data-inspector-open=true]>.task-chat { display:none; }
+  #rly-tree .task-inspector { border-left:0; }
+  #rly-tree .task-inspector .local-execution { width:100%; max-width:620px; align-self:center; padding:20px 24px; }
+  #rly-tree .task-head-actions .task-git-button span { display:none; }
+  #rly-tree .task-git-button { width:32px; }
+  #rly-tree .task-inspector .local-approval pre { max-height:220px; }
+}
+@media (max-width:620px) {
+  #rly-tree .local-task-head { padding:10px 16px; gap:8px; flex-wrap:nowrap; }
+  #rly-tree .task-head-actions { gap:4px; }
+  #rly-tree .task-head-actions .button { min-height:40px; min-width:40px; padding:8px; }
+  #rly-tree .task-head-actions .task-inspector-toggle>span:not(.task-attention-count) { display:none; }
+  #rly-tree .task-chat .local-messages { padding:20px 16px 8px; }
+  #rly-tree .task-chat .local-task-bottom { padding:10px 16px 16px; }
+  #rly-tree .task-chat .draft-label { display:none; }
+  #rly-tree .task-inspector .local-execution { padding:16px; }
+  #rly-tree .task-inspector :is(.button,input,select,textarea) { min-height:44px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #rly-tree :is(.task-inspector,.local-task-phase,.role-mark,.role-mark path) { animation:none !important; }
+}

@@ -1,0 +1,43 @@
+#rly-tree .usage-page { width:100%; max-width:1140px; margin-inline:auto; font-variant-numeric:tabular-nums; }
+#rly-tree .usage-filters,#rly-tree .usage-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+#rly-tree .usage-filters { margin-block:18px 28px; }
+#rly-tree .usage-page select { min-width:0; max-width:100%; border:1px solid var(--line); background:var(--panel); color:var(--fg); border-radius:6px; padding:7px 9px; font:inherit; font-size:13px; }
+#rly-tree .usage-period { display:flex; padding:3px; border:1px solid var(--line); border-radius:7px; }
+#rly-tree .usage-period button { background:transparent; color:var(--muted); border:0; padding:6px 12px; border-radius:4px; font:inherit; font-size:13px; }
+#rly-tree .usage-period button[aria-pressed=true] { background:var(--active); color:var(--fg); }
+#rly-tree .usage-page h2 { font-size:16px; font-weight:600; line-height:1.4; margin:0; }
+#rly-tree .usage-trend { border-block:1px solid var(--line); padding-block:20px; }
+#rly-tree .usage-total { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; color:var(--muted); margin-top:8px; }
+#rly-tree .usage-total strong { color:var(--fg); font-size:32px; line-height:1.15; letter-spacing:-.03em; font-weight:550; overflow-wrap:anywhere; }
+#rly-tree .usage-note,#rly-tree .usage-point,#rly-tree .usage-axis,#rly-tree .usage-days { font-size:12px; color:var(--muted); line-height:1.55; }
+#rly-tree .usage-note { margin:5px 0; }
+#rly-tree .usage-chart { display:flex; align-items:stretch; height:116px; margin-top:18px; border-block-end:1px solid var(--line); background:repeating-linear-gradient(to top,transparent 0,transparent calc(50% - 1px),var(--line) 50%); }
+#rly-tree .usage-chart button { flex:1; min-width:0; height:100%; display:flex; align-items:end; justify-content:center; border:0; background:transparent; padding:0 1px; border-radius:2px; }
+#rly-tree .usage-chart button:is(:hover,[aria-pressed=true]) { background:var(--hover); }
+#rly-tree .usage-chart button span { width:72%; max-width:56px; min-width:2px; background:var(--muted); border-radius:2px 2px 0 0; }
+#rly-tree .usage-chart button[aria-pressed=true] span { background:var(--fg); }
+#rly-tree .usage-chart button .usage-unknown { background:transparent; border-top:2px dashed var(--muted); }
+#rly-tree .usage-axis { display:flex; justify-content:space-between; padding-top:5px; }
+#rly-tree .usage-point { color:var(--fg); margin-block:10px 0; }
+#rly-tree .usage-days summary { width:fit-content; padding:5px 0; cursor:pointer; }
+#rly-tree .usage-days table { width:100%; border-collapse:collapse; color:var(--fg); }
+#rly-tree .usage-days :is(th,td) { padding:6px 3px; border-bottom:1px solid var(--line); text-align:right; font-weight:400; }
+#rly-tree .usage-days th:first-child { text-align:left; }
+#rly-tree .usage-composition { font-size:13px; font-weight:550; margin:16px 0 0; }
+#rly-tree .usage-breakdown { display:flex; flex-wrap:wrap; gap:10px 32px; margin:6px 0 0; }
+#rly-tree .usage-breakdown dt,#rly-tree .usage-ranking small { color:var(--muted); font-size:12px; line-height:1.55; }
+#rly-tree .usage-breakdown dd { margin:1px 0 0; font-size:14px; }
+#rly-tree .usage-lower { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(190px,1fr); gap:36px; padding-top:24px; }
+#rly-tree .usage-lower ol { list-style:none; padding:0; margin:12px 0; }
+#rly-tree .usage-lower li { display:flex; align-items:baseline; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+#rly-tree .usage-ranking ol { counter-reset:rank; }
+#rly-tree .usage-ranking li { counter-increment:rank; }
+#rly-tree .usage-ranking li::before { content:counter(rank); color:var(--muted); min-width:1.5ch; font-size:13px; }
+#rly-tree .usage-ranking strong { font-size:14px; font-weight:550; }
+#rly-tree .usage-ranking small { display:block; }
+#rly-tree .usage-rank-value { text-align:right; margin-inline-start:auto; }
+#rly-tree .usage-funnel li { justify-content:space-between; font-size:13px; }
+#rly-tree .usage-empty { padding-block:28px; border-top:1px solid var(--line); }
+@media(max-width:1000px) { #rly-tree .usage-lower { grid-template-columns:minmax(0,1fr); gap:16px; } }
+@media(max-width:620px) { #rly-tree .usage-period button,#rly-tree .usage-page select,#rly-tree .usage-days summary { min-height:44px; } #rly-tree .usage-filters { gap:8px; } }
+#rly-tree .usage-peak { margin-block:4px 0; }

@@ -1,0 +1,35 @@
+#rly-tree .account-actions { display:flex; flex-wrap:wrap; gap:8px; }
+#rly-tree .accounts-page { max-width:1200px; width:100%; margin:0 auto; }
+#rly-tree .accounts-layout { display:grid; grid-template-columns:minmax(200px,260px) minmax(0,1fr); gap:32px; margin-top:28px; }
+#rly-tree .accounts-list { display:grid; align-content:start; gap:24px; }
+#rly-tree .accounts-list h2 { margin:0 8px 8px; color:var(--muted); font-size:12px; }
+#rly-tree .account-row { display:grid; gap:4px; width:100%; padding:12px; border:0; border-radius:6px; background:transparent; text-align:left; overflow-wrap:anywhere; }
+#rly-tree .account-row:hover { background:var(--hover); }
+#rly-tree .account-row[aria-current=true] { background:var(--active); }
+#rly-tree .account-row strong { font-weight:500; font-size:13px; }
+#rly-tree .account-row :is(span,small) { color:var(--muted); font-size:12px; line-height:1.5; }
+#rly-tree .account-details { min-width:0; }
+#rly-tree .account-details h2 { margin:0 0 8px; font-size:18px; overflow-wrap:anywhere; }
+#rly-tree .account-state { font-size:12px; line-height:1.6; }
+#rly-tree .account-reason { margin:16px 0; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+#rly-tree :is(.account-create,.account-rename,.account-code) { display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px; padding:16px 0; }
+#rly-tree :is(.account-create,.account-rename,.account-code) label { display:grid; flex:1 1 180px; gap:6px; min-width:0; font-size:12px; color:var(--muted); }
+#rly-tree :is(.account-create,.account-rename,.account-code) :is(input,select) { width:100%; min-width:0; padding:8px 10px; border:1px solid var(--line); border-radius:5px; background:var(--panel); color:var(--fg); }
+#rly-tree .account-create { border-block:1px solid var(--line); margin-top:20px; }
+#rly-tree .account-usage { border-block:1px solid var(--line); margin-top:24px; padding:16px 0; }
+#rly-tree .account-usage>strong { font-size:13px; font-weight:500; }
+#rly-tree .account-enable { display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer; }
+#rly-tree .account-welcome { width:min(440px,calc(100% - 32px)); max-height:calc(100% - 32px); overflow:auto; padding:24px; border:1px solid var(--line); border-radius:8px; color:var(--fg); background:var(--panel); box-shadow:0 12px 36px #0003; }
+#rly-tree .account-welcome::backdrop { background:#0006; }
+#rly-tree .account-welcome h2 { font-size:18px; line-height:1.4; margin:0 0 12px; }
+#rly-tree .account-welcome p { font-size:13px; line-height:1.6; margin-bottom:20px; }
+#rly-tree .task-account { margin:12px 0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+#rly-tree .task-account .small-action { margin-left:8px; }
+#rly-tree .task-inspector .role-assignment .role-account { grid-column:1/-1; }
+#rly-tree .local-message-meta { flex-wrap:wrap; row-gap:4px; min-width:0; }
+#rly-tree .local-message-meta strong { max-width:100%; overflow-wrap:anywhere; }
+#rly-tree .local-message-meta .message-profile { margin-left:0; max-width:100%; overflow-wrap:anywhere; }
+#rly-tree .local-message-meta time { flex-shrink:0; }
+#rly-tree .account-details h2:focus-visible { outline:2px solid light-dark(#315d80,#a9c9e8); outline-offset:4px; }
+@media(max-width:900px) { #rly-tree .accounts-layout { grid-template-columns:minmax(0,1fr); gap:24px; } #rly-tree .accounts-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; } }
+@media(max-width:620px) { #rly-tree .accounts-list { grid-template-columns:minmax(0,1fr); } #rly-tree :is(.account-create,.account-rename,.account-code) :is(input,select) { min-height:44px; } }
