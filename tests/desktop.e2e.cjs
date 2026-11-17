@@ -98,6 +98,7 @@ async function run() {
     app.emit('activate');
   });
   page = await nextWindow;
+  await resizeDesktop(app, page, 1280, 860);
   page.on('pageerror', error => errors.push(error.message));
   await page.getByRole('heading', { name: 'Что будем делать?' }).waitFor();
   assert.equal(await page.evaluate(async () => (await window.ade.call('runtime.health', {})).value.pid), runtimePid);
