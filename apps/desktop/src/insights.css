@@ -41,3 +41,16 @@
 @media(max-width:1000px) { #rly-tree .usage-lower { grid-template-columns:minmax(0,1fr); gap:16px; } }
 @media(max-width:620px) { #rly-tree .usage-period button,#rly-tree .usage-page select,#rly-tree .usage-days summary { min-height:44px; } #rly-tree .usage-filters { gap:8px; } }
 #rly-tree .usage-peak { margin-block:4px 0; }
+#rly-tree .usage-heading { margin-block-end:24px; }
+#rly-tree .usage-heading h1 { margin:0; }
+#rly-tree .quota-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr)); gap:12px; margin:14px 0 28px; }
+#rly-tree .quota-provider { border:1px solid var(--line); border-radius:8px; padding:14px 16px; min-width:0; }
+#rly-tree .quota-provider h3 { margin:0; font-size:15px; }
+#rly-tree .quota-provider small,#rly-tree .plan-reading small { font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+#rly-tree .quota-row { margin-top:12px; }
+#rly-tree .quota-row label { display:grid; grid-template-columns:1fr auto; gap:5px 12px; font-size:13px; }
+#rly-tree .quota-row strong { font-weight:550; font-variant-numeric:tabular-nums; }
+#rly-tree .quota-row progress { grid-column:1/-1; width:100%; height:4px; appearance:none; }
+#rly-tree .quota-row progress::-webkit-progress-bar { background:var(--line); border-radius:3px; }
+#rly-tree .quota-row progress::-webkit-progress-value { background:var(--fg); border-radius:3px; }
+#rly-tree .quota-meta { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-top:10px; }

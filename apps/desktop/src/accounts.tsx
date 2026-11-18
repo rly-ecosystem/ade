@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Provider, RuntimeRequest } from '../../../packages/contracts/src/index.js';
 import type { AccountProfiles, AccountProfile } from '../../../packages/contracts/src/accounts.js';
+import { QuotaReading } from './plan-usage.js';
 import { Icon } from './ui.js';
 
 export type ProfileRequest = Extract<RuntimeRequest, { method: `profile.${string}` }>;
@@ -48,7 +49,7 @@ function AccountDetails({ profile, headingRef, selected, busy, onAction, onSignI
     </div>
     {profile.pending ? <p className="local-muted" role="status">{profile.mode === 'siwc' ? 'Завершите вход в системном браузере и вернитесь в ADE.' : profile.needsCode ? 'Вставьте одноразовый код, который показал браузер.' : 'Завершите вход Claude в системном браузере.'}</p> : null}
     {profile.pending && profile.needsCode ? <form className="account-code" onSubmit={async event => { event.preventDefault(); if (!code.trim()) return; if (await onAction({ method: 'profile.code', params: { profileId: profile.id, code: code.trim() } })) setCode(''); }}><label>Код из браузера<input type="password" autoComplete="one-time-code" aria-label="Код входа Claude" value={code} maxLength={8192} disabled={busy} onChange={event => setCode(event.target.value)} /></label><button className="button" disabled={busy || !code.trim()}>Передать код официальному CLI</button></form> : null}
-    {profile.mode === 'siwc' ? <div className="account-usage"><strong>{profile.state === 'connected' ? 'Using ChatGPT plan' : 'Использование ChatGPT plan'}</strong><p className="local-muted">Лимиты приложения, общий расход плана и разрешение на credits управляются в ChatGPT. Квота пока неизвестна; повторные входы не создают новый лимит.</p><button className="button" onClick={() => void window.ade.openExternal('https://chatgpt.com/settings/usage')}>Manage usage</button></div> : null}
+    <div className="account-usage"><strong>{profile.mode === 'siwc' && profile.state === 'connected' ? 'Using ChatGPT plan' : 'Лимиты подписки'}</strong><QuotaReading profile={profile} /></div>
     {!shared ? <><form className="account-rename" onSubmit={event => { event.preventDefault(); if (name.trim()) void onAction({ method: 'profile.rename', params: { profileId: profile.id, name: name.trim() } }); }}><label>Название профиля<input value={name} maxLength={40} disabled={busy} onChange={event => setName(event.target.value)} /></label><button className="button" disabled={busy || !name.trim() || name.trim() === profile.name}>Сохранить название</button></form><label className="account-enable"><input type="checkbox" checked={enabled} disabled={active} onChange={async event => { const next = event.target.checked; setEnabled(next); const result = await onAction({ method: 'profile.enable', params: { profileId: profile.id, enabled: next } }); setEnabled(result?.profiles.find(item => item.id === profile.id)?.enabled ?? profile.enabled); }} />Использовать профиль</label></> : null}
   </section>;
 }

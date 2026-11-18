@@ -130,6 +130,7 @@ createInterface({ input: process.stdin }).on('line', line => {
   const message = JSON.parse(line);
   if (provider === 'codex') {
     if (message.method === 'initialize') send({ id: message.id, result: {} });
+    else if (message.method === 'account/rateLimits/read') send({ id: message.id, result: { rateLimits: { primary: { usedPercent: path.basename(process.env.CODEX_HOME || '') === '.codex-studio' ? 61 : 24, windowDurationMins: 300, resetsAt: 1900000000 }, secondary: { usedPercent: 0, windowDurationMins: 10080 }, planType: 'plus' } } });
     else if (message.method === 'account/read') send({ id: message.id, result: { account: { type: 'chatgpt' } } });
     else if (message.method === 'config/read') send({ id: message.id, result: { config: { mcp_servers: {} } } });
     else if (message.method === 'thread/start') {
@@ -142,7 +143,8 @@ createInterface({ input: process.stdin }).on('line', line => {
     else if (message.method === 'turn/start') { send({ id: message.id, result: { turn: { id: 'fixture-turn' } } }); start(message.params.input[0].text); }
     else if (message.id === 'fixture-permission') finish(message.result?.decision === 'accept');
   } else {
-    if (message.type === 'control_request') send({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id, response: {} } });
+    if (message.type === 'control_request' && message.request.subtype === 'get_usage') send({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id, response: { rate_limits_available: true, subscription_type: 'pro', rate_limits: { five_hour: { utilization: 12.5, resets_at: '2030-03-17T10:00:00Z' } } } } });
+    else if (message.type === 'control_request') send({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id, response: {} } });
     else if (message.type === 'user') { send({ type: 'system', subtype: 'init', session_id: 'fixture-session' }); start(message.message.content); }
     else if (message.type === 'control_response') finish(message.response.response?.behavior === 'allow');
   }

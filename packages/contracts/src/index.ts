@@ -120,6 +120,9 @@ export interface GitSnapshot {
 }
 
 export interface RequestMap {
+  'usage.sources': { params: Record<string, never>; result: import('./device-usage.js').UsageSource[] };
+  'usage.device': { params: { period: import('./insights.js').InsightPeriod }; result: import('./device-usage.js').DeviceUsage };
+  'usage.quota': { params: { profileId: string }; result: import('./device-usage.js').PlanQuota };
   'usage.insights': { params: { period: import('./insights.js').InsightPeriod; projectId: string | null }; result: import('./insights.js').UsageInsights };
   bootstrap: { params: Record<string, never>; result: Bootstrap };
   'task.create': { params: { projectId: string; text: string; requestId: string }; result: TaskDetail };
@@ -173,6 +176,9 @@ export interface DesktopAPI {
 export const EXECUTION_UNAVAILABLE = 'Резерв между Codex и Claude используется только при подтверждённом лимите. Платный API выключен.';
 
 const fields: Record<Method, string[]> = {
+  'usage.sources': [],
+  'usage.device': ['period'],
+  'usage.quota': ['profileId'],
   'usage.insights': ['period', 'projectId'],
   bootstrap: [],
   'task.create': ['projectId', 'text', 'requestId'],
@@ -226,7 +232,7 @@ export function parseRequest(input: unknown): RuntimeRequest {
       if (!Array.isArray(value) || value.length !== ROLES.length || value.some((step, i) => !step || typeof step !== 'object' || Object.keys(step).some(key => !['role', 'provider', 'model', 'profileId'].includes(key)) || step.profileId !== undefined && !validProfileId(step.profileId) || step.role !== ROLES[i] || !['codex', 'claude'].includes(step.provider) || typeof step.model !== 'string' || step.model.length > 100 || step.model && !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(step.model))) throw new Error('Нужны четыре роли с исполнителем и моделью.');
       continue;
     }
-    if (key === 'profileId') { if (!validProfileId(value)) throw new Error('Некорректный профиль.'); continue; }
+    if (key === 'profileId') { if (!validProfileId(value) && !(method === 'usage.quota' && typeof value === 'string' && /^cli-[a-f0-9]{24}$/.test(value))) throw new Error('Некорректный профиль.'); continue; }
     if (key === 'name') { if (typeof value !== 'string' || !value.trim() || value.trim().length > 40 || /[\r\n\0]/.test(value)) throw new Error('Укажите название профиля, до 40 символов.'); continue; }
     if (key === 'code') { if (typeof value !== 'string' || !value.trim() || value.length > 8192 || /[\r\n\0]/.test(value)) throw new Error('Некорректный код входа.'); continue; }
     if (key === 'note') { if (typeof value !== 'string' || value.includes('\0') || value.length > 2000) throw new Error('Некорректное пояснение.'); continue; }

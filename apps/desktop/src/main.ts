@@ -72,7 +72,7 @@ async function runtimeCall(operation: string, input: unknown): Promise<Result<un
     const timer = setTimeout(() => {
       pending.delete(id);
       resolve({ ok: false, error: 'Ядро не подтвердило операцию. Обновите данные перед повтором.' });
-    }, 30000);
+    }, operation === 'call' && (input as { method?: string })?.method === 'usage.device' ? 120000 : 30000);
     pending.set(id, { resolve, timer });
     try {
       if (!child) throw new Error('Runtime exited.');

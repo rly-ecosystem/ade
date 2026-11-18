@@ -155,7 +155,7 @@ export function adapter(provider: Provider, cwd: string, model: string, cb: Call
           }
         }, fail);
         try {
-          await call('initialize', { clientInfo: { name: auth?.accessToken ? 'RLY ADE' : 'rly_ade', title: 'RLY ADE', version: '0.6.0' }, capabilities: { experimentalApi: !!auth?.accountsRoot, requestAttestation: false } });
+          await call('initialize', { clientInfo: { name: auth?.accessToken ? 'RLY ADE' : 'rly_ade', title: 'RLY ADE', version: '0.6.1' }, capabilities: { experimentalApi: !!auth?.accountsRoot, requestAttestation: false } });
           write({ method: 'initialized' });
           if (!auth?.accessToken) { const account = await call('account/read', { refreshToken: false }); if (account.account?.type !== 'chatgpt') throw new Error('Подписочный вход Codex недоступен. Платный API выключен.'); }
           const config = await call('config/read', { includeLayers: false, cwd });

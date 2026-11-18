@@ -111,6 +111,10 @@ export class Store {
     }
   }
 
+  measuredRuns(since: Date): import('./device-history.js').RecordedRun[] {
+    return this.db.prepare('SELECT id, provider, profileId, sessionId, model, startedAt, usageData FROM runs WHERE startedAt >= ? AND usageData IS NOT NULL').all(since.toISOString()) as unknown as import('./device-history.js').RecordedRun[];
+  }
+
   insights(period: InsightPeriod, projectId: string | null) {
     return usageInsights(this.db, period, projectId);
   }

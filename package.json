@@ -1,6 +1,6 @@
 {
   "name": "rly-ade",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "RLY ADE local desktop runtime",
   "engines": {

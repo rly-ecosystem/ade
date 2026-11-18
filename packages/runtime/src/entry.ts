@@ -20,7 +20,7 @@ const runtime = new Runtime(filename, {
 let queue = Promise.resolve();
 
 port.on('message', ({ data }) => {
-  queue = queue.then(async () => {
+  const handle = async () => {
     try {
       if (data.operation === 'shutdown') {
         await runtime.shutdown();
@@ -34,7 +34,10 @@ port.on('message', ({ data }) => {
     } catch (error) {
       port.postMessage({ id: data.id, ok: false, error: error instanceof Error ? error.message : 'Ошибка локального ядра.' });
     }
-  });
+  };
+  const method = (data.input as { method?: string } | null)?.method;
+  if (data.operation === 'call' && (method === 'usage.device' || method === 'usage.quota' || method === 'usage.sources')) void handle();
+  else queue = queue.then(handle);
 });
 void runtime.initialize().then(() => port.postMessage({ ready: true })).catch(() => process.exit(1));
 process.on('disconnect', () => { void runtime.shutdown().finally(() => process.exit(0)); });

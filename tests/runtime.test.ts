@@ -14,6 +14,7 @@ import { mutationId, confirmMutation } from '../apps/desktop/src/mutations.js';
 import './execution.test.js';
 import './accounts.test.js';
 import './insights.test.js';
+import './device-usage.test.js';
 
 function fixture(t: { after: (fn: () => void) => void }) {
   const directory = mkdtempSync(path.join(tmpdir(), 'ade-runtime-'));

@@ -1,3 +1,7 @@
+import { homedir } from 'node:os';
+import { emptyQuota, queryPlan } from './plan-quota.js';
+import { discoverUsageHomes } from './usage-homes.js';
+import type { HistoryRoot } from './device-history.js';
 import { randomUUID } from 'node:crypto';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
@@ -77,6 +81,30 @@ export class Profiles {
     const status = await this.status(id); if (!status.authenticated) throw new Error(status.reason);
     this.registry.selected[status.provider] = id; this.changed(); return this.list();
   }
+  private registeredHomes(): HistoryRoot[] {
+    return this.list().profiles.map(p => {
+      const shared = p.mode === 'shared_cli';
+      const home = shared ? (p.provider === 'codex' ? process.env.CODEX_HOME : process.env.CLAUDE_CONFIG_DIR?.split(',')[0]?.trim()) || path.join(homedir(), '.' + p.provider) : path.join(this.root, p.id, p.provider);
+      return { home, profileId: p.id, provider: p.provider };
+    });
+  }
+  externalHomes() { return discoverUsageHomes(homedir(), process.env, this.registeredHomes()); }
+  async historyRoots() { const known = this.registeredHomes(); return [...known, ...await discoverUsageHomes(homedir(), process.env, known)]; }
+  async quota(id: string) {
+    if (id.startsWith('cli-')) {
+      const source = (await this.externalHomes()).find(r => r.profileId === id);
+      if (!source) throw new Error('Каталог профиля больше не доступен.');
+      return queryPlan(source.provider, { [source.provider === 'codex' ? 'CODEX_HOME' : 'CLAUDE_CONFIG_DIR']: source.home });
+    }
+    const p = this.list().profiles.find(profile => profile.id === id);
+    if (!p) throw new Error('Профиль не найден.');
+    if (!p.enabled || p.pending || this.signingOut.has(id)) return emptyQuota('Профиль отключён или выполняется вход.');
+    if (p.mode === 'siwc') return emptyQuota('Лимиты этого входа доступны в настройках ChatGPT.');
+    if (p.mode !== 'shared_cli' && p.state !== 'connected') return emptyQuota('Для просмотра лимитов войдите в профиль.');
+    const env = p.mode === 'shared_cli' && p.provider === 'claude' && process.env.CLAUDE_CONFIG_DIR?.includes(',')
+      ? { CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR.split(',')[0]!.trim() } : this.environment(id);
+    return queryPlan(p.provider, env);
+  }
   environment(id: string): NodeJS.ProcessEnv | undefined {
     if (Object.values(SHARED_PROFILES).includes(id)) return undefined;
     const profile = this.profile(id), directory = this.directory(id), config = path.join(directory, profile.provider);
@@ -114,7 +142,7 @@ export class Profiles {
     } else {
       value = await probe(provider, this.environment(id));
       profile.state = value.authenticated ? 'connected' : 'needs_sign_in';
-      profile.reason = value.authenticated ? 'Официальный Claude CLI · отдельное состояние входа, квота неизвестна.' : value.reason;
+      profile.reason = value.authenticated ? 'Официальный Claude CLI · отдельное состояние входа.' : value.reason;
     }
     this.persist();
     return { ...value, authenticated: value.authenticated && profile.state === 'connected', reason: profile.reason, profileId: id, profileName: profile.name };

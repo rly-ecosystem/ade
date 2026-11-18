@@ -1,4 +1,5 @@
 import { parseRequest, type RuntimeRequest } from '../../contracts/src/index.js';
+import { DeviceHistory } from './device-history.js';
 import { Store } from './store.js';
 import { inspectGit } from './git.js';
 import { canonicalDirectory, childDirectories, describeDirectory } from './directories.js';
@@ -11,6 +12,7 @@ import type { SIWCOptions } from './siwc.js';
 
 export class Runtime {
   readonly store: Store;
+  private history = new DeviceHistory();
   readonly runner: Runner;
   readonly checker: Checker;
   readonly profiles: Profiles;
@@ -44,6 +46,13 @@ export class Runtime {
   async call(input: unknown) {
     const request: RuntimeRequest = parseRequest(input);
     switch (request.method) {
+      case 'usage.sources': return (await this.profiles.externalHomes()).map(({ profileId: id, name, provider }) => ({ id, name, provider }));
+      case 'usage.quota': return this.profiles.quota(request.params.profileId);
+      case 'usage.device': {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - request.params.period + 1);
+        return this.history.read(await this.profiles.historyRoots(), request.params.period, this.store.measuredRuns(start), now);
+      }
       case 'usage.insights': return this.store.insights(request.params.period, request.params.projectId);
       case 'bootstrap': return this.store.bootstrap();
       case 'task.create': return this.store.createTask(request.params.projectId, request.params.text, request.params.requestId);
