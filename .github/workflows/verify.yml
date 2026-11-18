@@ -17,6 +17,13 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run package
+      - name: Check nested signatures and ZIP on Apple Silicon
+        if: runner.arch == 'ARM64'
+        run: |
+          archive="$RUNNER_TEMP/rly-signing-check.zip"
+          ditto -c -k --keepParent "dist/RLY ADE.app" "$archive"
+          digest=$(shasum -a 256 "$archive" | cut -d ' ' -f1)
+          npm run notarize -- "$archive" "$digest" --check
       - name: Exercise packaged desktop
         run: npm run test:gui
         env:
