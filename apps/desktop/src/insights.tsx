@@ -138,7 +138,7 @@ function DeviceHistoryView({ accounts }: { accounts: AccountProfiles | null }) {
     <div className="usage-filters"><div><h2>История использования</h2><p className="usage-note">Сеансы Codex и Claude Code на этом Mac, включая запуски вне ADE.</p></div>
       <div className="usage-period" role="group" aria-label="Период истории">{([7, 30] as const).map(days => <button key={days} aria-pressed={days === period} onClick={() => setPeriod(days)}>{days} дней</button>)}</div></div>
     {error ? <p role="alert">{error} <button className="small-action" onClick={() => setRetry(n => n + 1)}>Повторить</button></p> : !result ? <p role="status">Читаю историю CLI…</p> : <>
-      {result.partial ? <p role="status" className="usage-note">Часть журналов прочитать не удалось. Показаны доступные записи.</p> : null}
+      {result.partial ? <p role="status" className="usage-note">Часть данных неполна. Показан подтверждённый расход.</p> : null}
       {result.totals.sessions === 0 ? <p className="usage-empty">За этот период нет записей о токенах.</p> : <>
         <Trend device data={{ totals: chartRow(result.totals), days: result.days.map(d => ({ ...chartRow(d), date: d.date })), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }} />
         <div className="usage-lower">{[

@@ -12,6 +12,7 @@
     "start": "npm run build && electron apps/desktop",
     "test": "node scripts/build.mjs --tests && node --test build/runtime.test.cjs",
     "test:desktop": "node tests/desktop.e2e.cjs",
+    "test:siwc:live": "esbuild tests/siwc.live.ts --bundle --platform=node --target=node22 --outfile=build/siwc.live.cjs && node build/siwc.live.cjs",
     "test:live": "node tests/providers.live.cjs",
     "test:markdown": "node tests/markdown.e2e.cjs",
     "package": "npm run build && node scripts/package.mjs",

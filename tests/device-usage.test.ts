@@ -55,7 +55,7 @@ test('device history merges archives, shared transcript roots and ADE reports wi
   log(path.join(copy,'projects','other'),'copy',[assistant('one',8)]);
   roots.push({home:copy,provider:'claude',profileId:'cli-copy'});
   const newRun = (sessionId:string) => ({id:sessionId,provider:'codex' as const,profileId:null,sessionId,model:'m-codex',startedAt:stamp(0),usageData:JSON.stringify({input:4,output:3,cachedInput:0,cacheWrite:0})});
-  const dbRuns=[newRun('codex-a'),newRun('only-in-ade'),{...newRun('claude-a'),provider:'claude' as const,profileId:'cli-test'}];
+  const dbRuns=[{...newRun('codex-a'),startedAt:stamp(1,8)},newRun('only-in-ade'),{...newRun('claude-a'),provider:'claude' as const,profileId:'cli-test'}];
   const history=new DeviceHistory();
   const [week,month] = await Promise.all([history.read(roots,7,dbRuns,now),history.read(roots,30,dbRuns,now)]);
   assert.deepEqual(week.totals,{input:124,output:21,cachedInput:14,cacheWrite:4,sessions:3});
@@ -85,4 +85,58 @@ test('secondary CLI catalogs can supply usage only; unknown paths and SIWC canno
   const result=await runtime.profiles.quota(profile.id);
   assert.equal(result.windows.length,0); assert.match(result.note!,/ChatGPT/);
   await assert.rejects(runtime.profiles.quota('cli-'+'0'.repeat(24)),/Каталог/);
+});
+
+test('a truncated multi-day log retains detailed rows and adds only uncovered ADE tokens', async t => {
+  const home = mkdtempSync(path.join(tmpdir(), 'ade-usage-reconcile-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const now = new Date(); now.setHours(12, 0, 0, 0);
+  const stamp = (offset: number, hour: number) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, hour).toISOString();
+  const logs = path.join(home, 'projects'); mkdirSync(logs);
+  function assistant(id: string, at: string, model: string, fresh: number, read: number, write: number, output: number) {
+    return JSON.stringify({ type: 'assistant', timestamp: at, sessionId: 's', message: { id, model,
+      usage: { input_tokens: fresh, output_tokens: output, cache_read_input_tokens: read, cache_creation_input_tokens: write } } });
+  }
+  const first = assistant('first', stamp(-1, 23), 'main', 10, 5, 5, 4);
+  const second = assistant('second', stamp(0, 1), 'secondary', 5, 2, 3, 1);
+  const pathName = path.join(logs,'example.jsonl');
+  writeFileSync(pathName, [first, first, second, '{"type":"assistant","message":{"usage":'].join('\n') + '\n');
+  const run = { id: 'run', sessionId: 's', provider: 'claude' as const, profileId: 'profile', model: 'alias',
+    effectiveModel: 'main', startedAt: stamp(-1, 22), endedAt: stamp(0, 2),
+    usageData: JSON.stringify({ input: 90, output: 10, cachedInput: 20, cacheWrite: 15 }) };
+  const roots = [{ home, provider: 'claude' as const, profileId: 'shared-claude' }];
+  const history = new DeviceHistory();
+  const initial = await history.read(roots, 7, [run], now);
+  assert.equal(initial.partial, true);
+  assert.deepEqual(initial.totals, { input: 90, output: 10, cachedInput: 20, cacheWrite: 15, sessions: 1 });
+  assert.equal(initial.days.at(-2)!.input, 80);
+  assert.equal(initial.days.at(-1)!.input, 10);
+  assert.deepEqual(initial.models.map(m => [m.model, m.input]), [['Модель не указана', 60], ['main', 20], ['secondary', 10]]);
+  assert.equal(initial.profiles[0]!.profileId,'profile');
+
+  // Once the missing row is restored, the estimated residual moves to its actual day/model.
+  const restored = assistant('restored', stamp(0, 2), 'main', 40, 13, 7, 5);
+  const external = assistant('resumed', stamp(0, 3), 'external', 8, 0, 0, 2);
+  writeFileSync(pathName, [first, second, restored, external].join('\n'));
+  const complete = await history.read(roots, 30, [run], now);
+  assert.equal(complete.partial,false); assert.equal(complete.totals.input,98); assert.equal(complete.totals.output,12); assert.equal(complete.totals.sessions,1);
+  assert.equal(complete.days.at(-2)!.input,20); assert.equal(complete.days.at(-1)!.input,78);
+  assert.equal(complete.profiles.find(p=>p.profileId==='profile')!.input,90);
+  assert.equal(complete.profiles.find(p=>p.profileId==='shared-claude')!.input,8);
+  assert.deepEqual(complete.models.map(m=>m.model),['main','secondary','external']);
+
+  const empty = await history.read([],7,[run],now);
+  assert.deepEqual(empty.models.map(m=>[m.model,m.input]),[['main',90]]);
+  const old = { ...run, startedAt: stamp(-9,0) };
+  writeFileSync(pathName, second);
+  const recent = await history.read(roots,7,[old],now);
+  assert.equal(recent.totals.input,10);
+  const month = await history.read(roots,30,[old],now);
+  assert.equal(month.totals.input,90);
+  // A copied request can appear before the original under a different session ID.
+  const duplicateHome = path.join(home,'copy');
+  mkdirSync(path.join(duplicateHome,'projects'), {recursive:true});
+  writeFileSync(path.join(duplicateHome,'projects','fork.jsonl'), second.replace('"sessionId":"s"', '"sessionId":"fork"'));
+  const copied = await history.read([{...roots[0]!,home:duplicateHome},...roots],30,[run],now);
+  assert.equal(copied.totals.input,90); assert.equal(copied.totals.sessions,1);
 });

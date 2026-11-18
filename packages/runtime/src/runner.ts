@@ -111,7 +111,7 @@ export class Runner {
     let driver: Adapter;
     try { driver = adapter(provider, project.path, model, {
       process: (pid, stamp) => { this.store.process(run.id, pid, stamp); this.events.process(run.id, pid, stamp); },
-      session: id => { this.store.session(run.id, id); this.store.state(run.id, 'running'); this.events.changed(taskId); },
+      session: (id, reportedModel) => { this.store.session(run.id, id, reportedModel); this.store.state(run.id, 'running'); this.events.changed(taskId); },
       output: (itemId, text, replace) => {
         const before = sizes.get(itemId) || 0, after = (replace ? 0 : before) + Buffer.byteLength(text); sizes.set(itemId, after); outputBytes += after - before;
         if (outputBytes > (compact ? ECONOMY.outputBytes : 2 * 1024 * 1024)) throw new Error(compact ? 'Достигнут предел ответа 64 КиБ экономного режима. Прогресс сохранён.' : 'Превышен предел сохраняемого ответа 2 МиБ.');

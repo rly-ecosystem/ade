@@ -138,14 +138,14 @@ createInterface({ input: process.stdin }).on('line', line => {
       const permission = args.find(arg => arg.startsWith('permissions.' + threadOptions.permissions + '='));
       const parent = permission?.includes('extends=":read-only"') ? ':read-only' : ':workspace';
       if (permission) threadOptions.sandbox = parent === ':read-only' ? 'read-only' : 'workspace-write';
-      send({ id: message.id, result: { thread: { id: 'fixture-thread' }, activePermissionProfile: permission?.includes('="deny"') ? { id: threadOptions.permissions, extends: parent } : null } });
+      send({ id: message.id, result: { thread: { id: 'fixture-thread' }, model:'fixture-codex-effective', activePermissionProfile: permission?.includes('="deny"') ? { id: threadOptions.permissions, extends: parent } : null } });
     }
     else if (message.method === 'turn/start') { send({ id: message.id, result: { turn: { id: 'fixture-turn' } } }); start(message.params.input[0].text); }
     else if (message.id === 'fixture-permission') finish(message.result?.decision === 'accept');
   } else {
     if (message.type === 'control_request' && message.request.subtype === 'get_usage') send({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id, response: { rate_limits_available: true, subscription_type: 'pro', rate_limits: { five_hour: { utilization: 12.5, resets_at: '2030-03-17T10:00:00Z' } } } } });
     else if (message.type === 'control_request') send({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id, response: {} } });
-    else if (message.type === 'user') { send({ type: 'system', subtype: 'init', session_id: 'fixture-session' }); start(message.message.content); }
+    else if (message.type === 'user') { send({ type: 'system', subtype: 'init', session_id: 'fixture-session', model:'fixture-claude-effective' }); start(message.message.content); }
     else if (message.type === 'control_response') finish(message.response.response?.behavior === 'allow');
   }
 });

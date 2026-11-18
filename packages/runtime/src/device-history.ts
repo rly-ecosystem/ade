@@ -9,12 +9,17 @@ import { SHARED_PROFILES } from '../../contracts/src/accounts.js';
 import { tokenUsage } from './usage.js';
 
 export interface HistoryRoot { home: string; provider: Provider; profileId: string }
-export interface RecordedRun { id: string; profileId: string | null; sessionId: string | null; provider: Provider; model: string; startedAt: string; usageData: string }
-interface Entry { key: string; sharedKey: boolean; session: string; model: string; at: number; usage: TokenUsage }
+export interface RecordedRun { id: string; profileId: string | null; sessionId: string | null; provider: Provider; model: string; effectiveModel?: string | null; startedAt: string; endedAt?: string | null; usageData: string }
+interface Entry { key: string; sharedKey: boolean; session: string; identifiedSession: boolean; model: string; at: number; usage: TokenUsage }
 interface Parsed { entries: Entry[]; partial: boolean }
 const short = (v: unknown) => typeof v === 'string' && v.length <= 200 && !/[\p{C}]/u.test(v) ? v : '';
 const dayKey = (d: Date) => [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+const unknownModel = 'Модель не указана';
 const blank = (): DeviceRow => ({ input: 0, output: 0, cachedInput: 0, cacheWrite: 0, sessions: 0 });
+function addUsage(total: TokenUsage, usage: TokenUsage) {
+  total.input += usage.input; total.output += usage.output;
+  total.cachedInput += usage.cachedInput; total.cacheWrite += usage.cacheWrite;
+}
 
 async function parseFile(file: string, provider: Provider): Promise<Parsed> {
   // Keep only metering records. A transcript line may contain a very large image.
@@ -29,7 +34,7 @@ async function parseFile(file: string, provider: Provider): Promise<Parsed> {
       if (!(provider === 'claude' ? line.includes('"assistant"') && line.includes('"usage"') : /"token_count"|"session_meta"|"turn_context"/.test(line))) return;
       let row; try { row = JSON.parse(line); } catch { result.partial = true; return; }
       if (!row || typeof row !== 'object') return;
-      let sharedKey = false, key: string, usage: TokenUsage | null, currentSession = session;
+      let sharedKey = false, key: string, usage: TokenUsage | null, currentSession = session, identifiedSession = sessionFromLog;
       const at = typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : NaN;
       if (provider === 'codex') {
         const p = row.payload;
@@ -47,12 +52,12 @@ async function parseFile(file: string, provider: Provider): Promise<Parsed> {
         if (row.type !== 'assistant' || row.message?.model === '<synthetic>') return;
         usage = tokenUsage(provider, row.message?.usage);
         if (!usage) return;
-        model = short(row.message.model); currentSession = short(row.sessionId) || session;
+        model = short(row.message.model); currentSession = short(row.sessionId) || session; identifiedSession = !!short(row.sessionId);
         const message = short(row.message.id), request = short(row.requestId);
         sharedKey = !!(message || request);
         key = sharedKey ? message + '|' + request : session + ':' + lineNo;
       }
-      if (Number.isFinite(at)) result.entries.push({ key, sharedKey, session: currentSession, model: model || 'Модель не указана', at, usage });
+      if (Number.isFinite(at)) result.entries.push({ key, sharedKey, session: currentSession, identifiedSession, model: model || unknownModel, at, usage });
     };
     let carry = '', skipping = false;
     for await (const chunk of handle.createReadStream({ encoding: 'utf8', autoClose: false })) {
@@ -133,7 +138,7 @@ export class DeviceHistory {
     for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) { const date = dayKey(d); days.set(date, { ...blank(), date }); }
     const totals = blank(), sessions = new Map<DeviceRow, Set<string>>();
     const add = (bucket: DeviceRow, id: string, usage: TokenUsage) => {
-      bucket.input += usage.input; bucket.output += usage.output; bucket.cachedInput += usage.cachedInput; bucket.cacheWrite += usage.cacheWrite;
+      addUsage(bucket, usage);
       let seen = sessions.get(bucket);
       if (!seen) { seen = new Set(); sessions.set(bucket, seen); }
       if (!seen.has(id)) { seen.add(id); bucket.sessions++; }
@@ -141,34 +146,72 @@ export class DeviceHistory {
     const record = (profileId: string, provider: Provider, entry: Entry) => {
       if (entry.at < start.getTime() || entry.at > now.getTime()) return;
       const date = days.get(dayKey(new Date(entry.at)))!;
-      const modelKey = provider + ':' + entry.model, sessionKey = profileId + ':' + entry.session;
+      const modelKey = provider + ':' + entry.model, sessionKey = (entry.identifiedSession ? provider : profileId) + ':' + entry.session;
       const profile = profiles.get(profileId) || { ...blank(), provider, profileId };
       const model = models.get(modelKey) || { ...blank(), provider, model: entry.model };
       profiles.set(profileId, profile); models.set(modelKey, model);
       for (const bucket of [totals, date, profile, model]) add(bucket, sessionKey, entry.usage);
     };
-    const unique = new Map<string, { root: HistoryRoot; entry: Entry }>(), logged = new Set<string>();
-    for (const { root, parsed } of collected.sources) for (const entry of parsed.entries) {
-      logged.add(root.provider + ':' + entry.session);
-      const key = (entry.sharedKey ? root.provider : root.profileId) + ':' + entry.key, old = unique.get(key);
-      // Claude can repeat one message in multiple blocks or resumed files.
-      if (!old || entry.usage.input + entry.usage.output > old.entry.usage.input + old.entry.usage.output) unique.set(key, { root, entry });
+    interface Measurement {
+      run: RecordedRun; from: number; until: number; usage: TokenUsage;
+      covered: TokenUsage; models: Set<string>;
     }
-    const runOwners = new Map<string, string>();
-    for (const run of runs) if (run.sessionId) runOwners.set(run.provider + ':' + run.sessionId, run.profileId || SHARED_PROFILES[run.provider]);
-    for (const { root, entry } of unique.values()) {
-      const owner = runOwners.get(root.provider + ':' + entry.session) || root.profileId;
-      record(owner, root.provider, entry);
-    }
+    const reports: Measurement[] = [], bySession = new Map<string, Measurement[]>();
     for (const run of runs) {
-      const profile = run.profileId || SHARED_PROFILES[run.provider];
-      if (run.sessionId && logged.has(run.provider + ':' + run.sessionId)) continue;
       let counters;
       try { counters = JSON.parse(run.usageData); } catch { partial = true; continue; }
       const usage = tokenUsage('codex', { inputTokens: counters?.input, outputTokens: counters?.output, cachedInputTokens: counters?.cachedInput, cacheWriteInputTokens: counters?.cacheWrite });
-      const at = Date.parse(run.startedAt);
-      if (!usage || !Number.isFinite(at)) { partial = true; continue; }
-      record(profile, run.provider, { key: run.id, sharedKey: false, session: run.sessionId || run.id, model: run.model || 'Модель не указана', at, usage });
+      const from = Date.parse(run.startedAt), until = run.endedAt ? Date.parse(run.endedAt) : now.getTime();
+      if (!usage || !Number.isFinite(from) || !Number.isFinite(until)) { partial = true; continue; }
+      const report: Measurement = { run, from, until, usage, covered: blank(), models: new Set() };
+      reports.push(report);
+      if (run.sessionId) {
+        const key = run.provider + ':' + run.sessionId;
+        const list = bySession.get(key) || [];
+        list.push(report); bySession.set(key, list);
+      }
+    }
+    for (const list of bySession.values()) list.sort((a, b) => b.from - a.from);
+    const unique = new Map<string, { root: HistoryRoot; entry: Entry; report?: Measurement }>();
+    for (const { root, parsed } of collected.sources) for (const entry of parsed.entries) {
+      const key = (entry.sharedKey ? root.provider : root.profileId) + ':' + entry.key;
+      const existing = unique.get(key);
+      const report = bySession.get(root.provider + ':' + entry.session)?.find(r => r.from <= entry.at && entry.at <= r.until);
+      // Resumed/forked files can repeat a growing message snapshot, sometimes under a new session ID.
+      if (!existing || entry.usage.input + entry.usage.output > existing.entry.usage.input + existing.entry.usage.output) {
+        unique.set(key, { root, entry, report: existing?.report || report });
+      } else if (report) existing.report ??= report;
+    }
+    for (const { root, entry, report } of unique.values()) {
+      if (!report) { record(root.profileId, root.provider, entry); continue; }
+      addUsage(report.covered, entry.usage);
+      const model = entry.model === unknownModel ? report.run.effectiveModel || unknownModel : entry.model;
+      report.models.add(model);
+      record(report.run.profileId || SHARED_PROFILES[root.provider], root.provider, {
+        ...entry, model, session: report.run.sessionId!, identifiedSession: true,
+      });
+    }
+    for (const { run, from, usage, covered, models } of reports) {
+      const missing = {
+        input: Math.max(0, usage.input - covered.input), output: Math.max(0, usage.output - covered.output),
+        cachedInput: Math.max(0, usage.cachedInput - covered.cachedInput), cacheWrite: Math.max(0, usage.cacheWrite - covered.cacheWrite),
+      };
+      // Read and write counts are subsets of input. Conflicting cache classifications
+      // cannot turn already-counted input into new tokens.
+      if (missing.cachedInput + missing.cacheWrite > missing.input) {
+        partial = true;
+        missing.cachedInput = Math.min(missing.cachedInput, missing.input);
+        missing.cacheWrite = Math.min(missing.cacheWrite, missing.input - missing.cachedInput);
+      }
+      if (models.size && !missing.input && !missing.output) continue;
+      let model = run.effectiveModel || run.model || unknownModel;
+      if (models.size === 1) {
+        const [observed] = models;
+        if (observed !== unknownModel) model = run.effectiveModel && run.effectiveModel !== observed ? unknownModel : observed!;
+      } else if (models.size > 1) model = unknownModel;
+      record(run.profileId || SHARED_PROFILES[run.provider], run.provider, {
+        key: run.id, sharedKey: false, session: run.sessionId || run.id, identifiedSession: true, model, at: from, usage: missing,
+      });
     }
     const descending = (a: DeviceRow, b: DeviceRow) => (b.input + b.output) - (a.input + a.output);
     return { asOf: now.toISOString(), totals, days: [...days.values()], profiles: [...profiles.values()].sort(descending), models: [...models.values()].sort(descending), partial };

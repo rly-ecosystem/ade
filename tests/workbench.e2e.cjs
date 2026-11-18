@@ -9,7 +9,7 @@ for(const provider of ['codex','claude']){fs.copyFileSync(path.join(__dirname,'f
 let app;
 (async()=>{
  const executablePath=process.env.ADE_TEST_EXECUTABLE;
- app=await electron.launch({...(executablePath?{executablePath,args:[]}:{args:[path.join(root,'apps','desktop')]}),env:{...process.env,PATH:bin+path.delimiter+process.env.PATH,ADE_USER_DATA:path.join(directory,'user-data')}});
+ app=await electron.launch({...(executablePath?{executablePath,args:[]}:{args:[path.join(root,'apps','desktop')]}),env:{...process.env,PATH:bin+path.delimiter+process.env.PATH,ADE_USER_DATA:path.join(directory,'user-data'),CODEX_HOME:path.join(directory,'codex-home'),CLAUDE_CONFIG_DIR:path.join(directory,'claude-config')}});
  const page=await desktopPage(app),errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.getByRole('heading',{name:'Что будем делать?'}).waitFor();
  await app.evaluate(({dialog},repo)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[repo]});},repo);
@@ -27,10 +27,42 @@ let app;
  assert.equal(await inspector.isVisible(),false);assert.equal(await toggle.evaluate(el=>el===document.activeElement),true);
  await showInspector(page);
  await page.getByText('Назначения ролей · не сохранены',{exact:true}).click();
+ const mixed = ['codex','claude','codex','claude'];
+ const defaults = ['', 'haiku', '', 'haiku'];
+ async function setConnections(codex, claude) {
+   const codexBin = path.join(bin, 'codex'), claudeMarker = path.join(bin, 'disable-claude');
+   if (codex) fs.copyFileSync(path.join(__dirname, 'fixtures', 'cli.cjs'), codexBin);
+   else fs.writeFileSync(codexBin, '#!/bin/sh\nexit 1\n');
+   fs.chmodSync(codexBin, 0o755);
+   if (claude) fs.rmSync(claudeMarker, {force:true});
+   else fs.writeFileSync(claudeMarker, '');
+   await app.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows()[0].webContents.send('ade:changed','profiles-auth'));
+ }
+ async function expectAssignments(providers, models, ready) {
+   await page.waitForFunction(({providers, models, ready}) => {
+     const rows = [...document.querySelectorAll('.role-assignment')];
+     const start = document.querySelector('.workbench-heading button');
+     return rows.length === 4 && start && start.disabled === !ready && rows.every((row,i) =>
+       row.querySelector('select').value === providers[i] && row.querySelector('input').value === models[i]);
+   }, {providers, models, ready});
+ }
+ await expectAssignments(mixed, defaults, true);
+ await setConnections(true, false);
+ await expectAssignments(Array(4).fill('codex'), Array(4).fill(''), true);
+ await setConnections(false, true);
+ await expectAssignments(Array(4).fill('claude'), defaults, true);
+ await setConnections(false, false);
+ await expectAssignments(mixed, defaults, false);
+ await setConnections(true, true);
+ await expectAssignments(mixed, defaults, true);
  assert.equal(await page.getByRole('checkbox',{name:'Параллельная подготовка',exact:true}).isChecked(),true);
  assert.equal(await page.getByRole('checkbox',{name:'Экономить контекст',exact:true}).isChecked(),true);
  await page.getByRole('textbox',{name:'Модель: Исследование',exact:true}).fill('sonnet');
  await page.getByRole('textbox',{name:'Модель: Ревью',exact:true}).fill('sonnet');
+ await setConnections(true, false);
+ await expectAssignments(mixed, ['', 'sonnet', '', 'sonnet'], false);
+ await setConnections(true, true);
+ await expectAssignments(mixed, ['', 'sonnet', '', 'sonnet'], true);
  await page.getByRole('button',{name:'Сохранить назначения',exact:true}).click();
  await page.getByText('Назначения ролей',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Запустить цепочку',exact:true}).click();

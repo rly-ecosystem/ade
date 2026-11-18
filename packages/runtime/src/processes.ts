@@ -26,11 +26,21 @@ export function nodeExecutable(): string {
   return binary;
 }
 
+export function sharedClaudeConfigDir(): string | undefined {
+  const first = process.env.CLAUDE_CONFIG_DIR?.split(',').map(dir => dir.trim()).find(Boolean);
+  return first ? path.resolve(first) : undefined;
+}
+
 export function cliEnvironment(binary: string, isolated?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const allowed = ['HOME', 'USER', 'LOGNAME', 'SHELL', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TMPDIR', 'XDG_CONFIG_HOME', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR'];
   const env: NodeJS.ProcessEnv = {};
   for (const key of allowed) if (process.env[key] && !(isolated && ['CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'XDG_CONFIG_HOME'].includes(key))) env[key] = process.env[key];
   if (isolated) Object.assign(env, isolated);
+  else if (path.basename(binary) === 'claude' && env.CLAUDE_CONFIG_DIR) {
+    const primary = sharedClaudeConfigDir();
+    if (primary) env.CLAUDE_CONFIG_DIR = primary;
+    else delete env.CLAUDE_CONFIG_DIR;
+  }
   env.PATH = [path.dirname(binary), path.dirname(process.execPath), ...(process.env.PATH || '').split(path.delimiter), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin'].join(path.delimiter);
   env.NO_COLOR = '1';
   return env;

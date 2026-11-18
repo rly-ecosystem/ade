@@ -10,7 +10,7 @@ import { execFile } from 'node:child_process';
 import { type AccountProfile, type AccountProfiles, type ProfileBindings, SHARED_PROFILES, validProfileId } from '../../contracts/src/accounts.js';
 import type { Provider, ProviderStatus } from '../../contracts/src/index.js';
 import { probe } from './adapters.js';
-import { cliEnvironment, executable, launch, processStamp, terminateGroup } from './processes.js';
+import { cliEnvironment, executable, launch, processStamp, sharedClaudeConfigDir, terminateGroup } from './processes.js';
 import { privateDirectory, readPrivate, writePrivate } from './secure-files.js';
 import { SIWC, AuthError, type Registration, type SIWCOptions, type SignInAttempt } from './siwc.js';
 import type { RuntimeEvents } from './runner.js';
@@ -84,7 +84,7 @@ export class Profiles {
   private registeredHomes(): HistoryRoot[] {
     return this.list().profiles.map(p => {
       const shared = p.mode === 'shared_cli';
-      const home = shared ? (p.provider === 'codex' ? process.env.CODEX_HOME : process.env.CLAUDE_CONFIG_DIR?.split(',')[0]?.trim()) || path.join(homedir(), '.' + p.provider) : path.join(this.root, p.id, p.provider);
+      const home = shared ? (p.provider === 'codex' ? process.env.CODEX_HOME : sharedClaudeConfigDir()) || path.join(homedir(), '.' + p.provider) : path.join(this.root, p.id, p.provider);
       return { home, profileId: p.id, provider: p.provider };
     });
   }
@@ -101,9 +101,7 @@ export class Profiles {
     if (!p.enabled || p.pending || this.signingOut.has(id)) return emptyQuota('Профиль отключён или выполняется вход.');
     if (p.mode === 'siwc') return emptyQuota('Лимиты этого входа доступны в настройках ChatGPT.');
     if (p.mode !== 'shared_cli' && p.state !== 'connected') return emptyQuota('Для просмотра лимитов войдите в профиль.');
-    const env = p.mode === 'shared_cli' && p.provider === 'claude' && process.env.CLAUDE_CONFIG_DIR?.includes(',')
-      ? { CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR.split(',')[0]!.trim() } : this.environment(id);
-    return queryPlan(p.provider, env);
+    return queryPlan(p.provider, this.environment(id));
   }
   environment(id: string): NodeJS.ProcessEnv | undefined {
     if (Object.values(SHARED_PROFILES).includes(id)) return undefined;

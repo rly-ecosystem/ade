@@ -159,6 +159,41 @@ test('official Claude sign-in/code/logout uses isolated directories and leaves g
   assert.equal((await f.profiles.status(b.id)).authenticated, true); assert.equal(readFileSync(path.join(cli.global, 'fixture-account.json'), 'utf8'), 'GLOBAL_SENTINEL');
 });
 
+test('shared Claude authentication, quota and task execution use the first configured home', async t => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'ade-claude-homes-'));
+  const runtime = new Runtime(path.join(directory, 'runtime.sqlite'));
+  t.after(async () => { await runtime.shutdown(); rmSync(directory, { recursive: true, force: true }); });
+  const cli = await localCLI(t, directory);
+  const secondary = path.join(directory, 'other'), xdg = path.join(directory, 'xdg');
+  mkdirSync(secondary); mkdirSync(xdg);
+  const originalXdg = process.env.XDG_CONFIG_HOME;
+  t.after(() => { if (originalXdg === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = originalXdg; });
+  process.env.CLAUDE_CONFIG_DIR = [' ', cli.global, secondary].join(', ');
+  process.env.XDG_CONFIG_HOME = xdg;
+
+  // The fixture must reject a quota or task launched with different settings than the sign-in check.
+  const binary = path.join(cli.bin, 'claude');
+  const source = readFileSync(binary, 'utf8');
+  const guard = 'if (process.env.CLAUDE_CONFIG_DIR !== ' + JSON.stringify(cli.global) +
+    ' || process.env.XDG_CONFIG_HOME !== ' + JSON.stringify(xdg) +
+    ' || !process.env.PATH.split(require("node:path").delimiter).includes(' + JSON.stringify(cli.bin) + ')) process.exit(42);';
+  writeFileSync(binary, source.replace("'use strict';", "'use strict';\n" + guard));
+
+  const roots = await runtime.profiles.historyRoots();
+  assert.equal(roots.find(root => root.profileId === SHARED_PROFILES.claude)?.home, cli.global);
+  assert.ok(roots.some(root => root.provider === 'claude' && root.home === secondary && root.profileId.startsWith('cli-')));
+  assert.equal((await runtime.profiles.status(SHARED_PROFILES.claude)).authenticated, true);
+  assert.ok((await runtime.profiles.quota(SHARED_PROFILES.claude)).windows.length);
+  const folder = path.join(directory, 'project'); mkdirSync(folder);
+  const project = await runtime.addProject(folder); runtime.store.trust(project.id, true);
+  const task = runtime.store.createTask(project.id, 'Use shared Claude', randomUUID()).task;
+  await runtime.runner.execute(task.id, 'claude', '', randomUUID());
+  await until(() => runtime.store.detail(task.id).approvals.length > 0);
+  const approval = runtime.store.detail(task.id).approvals[0]!;
+  runtime.runner.respond(approval.runId, approval.id, 'allow');
+  await until(() => runtime.store.detail(task.id).runs[0]?.status === 'completed');
+});
+
 test('runtime records the SIWC profile and redacts the child access token from saved output', async t => {
   const f = await fixture(t); await localCLI(t, f.directory);
   const runtime = new Runtime(path.join(f.directory, 'runtime.sqlite'), undefined, { siwc: { issuer: f.oidc.issuer } }); t.after(() => runtime.shutdown());

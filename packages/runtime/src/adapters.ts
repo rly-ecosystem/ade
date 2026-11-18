@@ -18,7 +18,7 @@ function inside(cwd: string, requested: unknown): boolean {
 }
 export interface Callbacks {
   process(pid: number, stamp: string): void;
-  session(id: string): void;
+  session(id: string, reportedModel?: string): void;
   output(itemId: string, text: string, replace: boolean): void;
   tool(title: string, details: string): void;
   approval(id: string, kind: string, title: string, details: string): void;
@@ -45,7 +45,7 @@ export async function probe(provider: Provider, environment?: NodeJS.ProcessEnv,
       const result = JSON.parse((await exec(binary, ['auth', 'status', '--json'], { env, timeout: 10000, maxBuffer: 65536 })).stdout);
       status.authenticated = result.loggedIn === true && result.authMethod === 'claude.ai' && result.apiProvider === 'firstParty';
     }
-    status.reason = status.authenticated ? 'Текущий вход CLI · квота неизвестна' : 'Нужен подписочный вход в официальном CLI. API-резерв выключен.';
+    status.reason = status.authenticated ? 'Подписочный вход CLI подтверждён.' : 'Нужен подписочный вход в официальном CLI. API-резерв выключен.';
   } catch (error) { status.reason = status.installed ? 'Не удалось подтвердить подписочный вход CLI. Выполните вход и обновите подключения.' : clean((error as Error).message); }
   return status;
 }
@@ -163,7 +163,7 @@ export function adapter(provider: Provider, cwd: string, model: string, cb: Call
           for (const name of Object.keys(config.config?.mcp_servers || {})) overrides['mcp_servers.' + name + '.enabled'] = false;
           const thread = await call('thread/start', { cwd, approvalPolicy: readOnly ? 'never' : 'untrusted', ...(auth?.accountsRoot ? { permissions: permissionId } : { sandbox: readOnly ? 'read-only' : 'workspace-write' }), ephemeral: true, config: overrides, ...(model ? { model } : {}) });
           if (auth?.accountsRoot && (thread.activePermissionProfile?.id !== permissionId || thread.activePermissionProfile?.extends !== parentProfile)) throw new Error('Codex не подтвердил защиту каталога аккаунтов. Обновите Codex CLI.');
-          cb.session(thread.thread.id);
+          cb.session(thread.thread.id, thread.model);
           await call('turn/start', { threadId: thread.thread.id, input: [{ type: 'text', text: prompt, text_elements: [] }], ...(economy ? { effort: 'low' } : {}) });
         } catch (error) { fail(error as Error); }
       } else {
@@ -193,7 +193,7 @@ export function adapter(provider: Provider, cwd: string, model: string, cb: Call
               cb.action({ itemId, kind, status: allow ? 'started' : 'denied', description: clean(request.tool_name, 100) });
               write({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id, response: allow ? { behavior: 'allow', updatedInput: request.input } : { behavior: 'deny', message: 'Пользователь ADE отклонил действие.' } } });
             });
-          } else if (message.type === 'system' && message.subtype === 'init') cb.session(clean(message.session_id, 128));
+          } else if (message.type === 'system' && message.subtype === 'init') cb.session(clean(message.session_id, 128), message.model);
           else if (message.type === 'stream_event') {
             const event = message.event || {};
             if (event.type === 'message_start') messageId = event.message?.id || messageId;

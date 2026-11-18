@@ -64,6 +64,9 @@ test('Codex and Claude execute with one-time permissions and portable persisted 
   const done = await wait(runtime, task.id, value => value.runs.length === 2 && value.task.status === 'completed');
   assert.match(readFileSync(path.join(repo, 'claude-result.txt'), 'utf8'), /CLAUDE_CONTINUED_CODEX_CONTEXT/);
   assert.equal(done.runs[1]!.generation, 2); assert.notEqual(done.runs[0]!.checkpointId, done.runs[1]!.checkpointId);
+  assert.deepEqual(done.runs.map(run => [run.model, run.effectiveModel]), [
+    ['', 'fixture-codex-effective'], ['', 'fixture-claude-effective'],
+  ]);
   const messages = conversation(done.events);
   assert.equal(messages.filter(message => message.text === 'CODEX_FIXTURE_RESULT').length, 1);
   assert.ok(done.runs.every(run => run.endedAt && run.pid && run.processStamp));
@@ -117,7 +120,7 @@ test('migration preserves v1 tasks, events and request keys and resets project t
   db.close();
   const runtime = new Runtime(filename);
   assert.equal(runtime.store.detail('t').events[0]!.payload.text, 'Preserved');
-  assert.equal(runtime.store.project('p').trusted, false); assert.equal(runtime.store.bootstrap().schemaVersion, 6);
+  assert.equal(runtime.store.project('p').trusted, false); assert.equal(runtime.store.bootstrap().schemaVersion, 7);
   assert.deepEqual(runtime.store.createTask('p', 'Saved task', 'old-request').runs, []);
   assert.equal(runtime.store.bootstrap().tasks.length, 1);
   runtime.close(); rmSync(directory, { recursive: true, force: true });
@@ -492,6 +495,28 @@ test('blocked review and user permission denial never trigger automatic repair',
  }
 });
 
+test('v6 databases retain requested models, reports and replay keys on upgrade', async t => {
+  const { directory, runtime, project } = await fixture(t);
+  runtime.store.trust(project.id, true);
+  const task = runtime.store.createTask(project.id, 'Upgrade a measured task', randomUUID()).task;
+  const requestId = randomUUID(), alias = 'requested-alias';
+  await runtime.call({ method: 'task.execute', params: { taskId: task.id, provider: 'codex', model: alias, requestId } });
+  await allow(runtime, task.id);
+  const before = (await wait(runtime, task.id, detail => detail.task.status === 'completed')).runs[0]!;
+  assert.equal(before.effectiveModel, 'fixture-codex-effective');
+  await runtime.shutdown();
+  const file = path.join(directory, 'data', 'ade.sqlite'), db = new DatabaseSync(file);
+  db.exec('ALTER TABLE runs DROP COLUMN effectiveModel; PRAGMA user_version=6'); db.close();
+  const restored = new Runtime(file);
+  try {
+    const run = restored.store.replayRun(requestId, task.id, 'codex', alias)!;
+    assert.equal(restored.store.bootstrap().schemaVersion, 7);
+    assert.equal(run.id, before.id); assert.equal(run.model, alias); assert.equal(run.effectiveModel, null);
+    assert.deepEqual(run.usage, before.usage);
+    assert.equal(restored.store.measuredRuns(new Date(0))[0]?.model, alias);
+  } finally { restored.close(); }
+});
+
 test('v3 release migration preserves completed runs, history, models and request keys',async()=>{
  const directory=mkdtempSync(path.join(tmpdir(),'ade-v3-migration-')),filename=path.join(directory,'ade.sqlite');
  const original=new Runtime(filename),project=original.store.addProject('/tmp/ade-legacy-project');original.store.trust(project.id,true);
@@ -504,7 +529,7 @@ test('v3 release migration preserves completed runs, history, models and request
  try {
   assert.deepEqual(restored.store.detail(detail.task.id),before);assert.equal(restored.store.project(project.id).trusted,true);
   assert.equal(restored.store.createTask(project.id,'Legacy completed task',requestId).runs.length,1);
-  assert.equal(restored.store.bootstrap().tasks.length,1);assert.equal(restored.store.bootstrap().schemaVersion,6);
+  assert.equal(restored.store.bootstrap().tasks.length,1);assert.equal(restored.store.bootstrap().schemaVersion,7);
  } finally {await restored.shutdown();rmSync(directory,{recursive:true,force:true});}
 });
 
@@ -525,7 +550,7 @@ test('verification logs preserve Unicode split across process output chunks',asy
 
 function downgradeTo4(db: DatabaseSync) {
  db.exec(`PRAGMA foreign_keys=OFF;
- ALTER TABLE runs DROP COLUMN profileId;ALTER TABLE execution_groups DROP COLUMN profileBindings;
+ ALTER TABLE runs DROP COLUMN effectiveModel;ALTER TABLE runs DROP COLUMN profileId;ALTER TABLE execution_groups DROP COLUMN profileBindings;
  DROP TABLE handoff_receipts;DROP TABLE handoffs;DROP INDEX run_project_writer;DROP INDEX run_role_owner;
  CREATE UNIQUE INDEX run_project_owner ON runs(projectId) WHERE status IN ('starting','running','awaiting_approval','stopping');
  ALTER TABLE runs DROP COLUMN compact;ALTER TABLE runs DROP COLUMN promptBytes;ALTER TABLE runs DROP COLUMN summaryData;ALTER TABLE runs DROP COLUMN usageData;
@@ -618,7 +643,7 @@ test('schema 4 migration preserves accepted artifacts and CLI assignments withou
  const restored=new Runtime(file);t.after(()=>restored.shutdown());await restored.initialize();
  const after=restored.store.detail(task.id);assert.equal(after.task.status,'accepted');assert.deepEqual(after.acceptance,before.acceptance);assert.deepEqual(after.task.rolePlan,before.task.rolePlan);
  assert.equal(after.task.parallel,false);assert.equal(after.task.economy,false);assert.deepEqual(after.handoffs,[]);assert.equal(after.runs[0]!.id,before.runs[0]!.id);assert.equal(after.runs[0]!.promptBytes,before.runs[0]!.promptBytes);
- assert.equal(restored.store.bootstrap().schemaVersion,6);
+ assert.equal(restored.store.bootstrap().schemaVersion,7);
 });
 
 test('recovery resumes only an unstarted parallel branch and never repeats its completed peer',async t=>{

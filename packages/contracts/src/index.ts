@@ -31,7 +31,7 @@ export interface ToolAction { runId: string; itemId: string; kind: 'command' | '
 export const ACTIVE_RUNS: RunStatus[] = ['starting', 'running', 'awaiting_approval', 'stopping'];
 export interface ProviderStatus { provider: Provider; installed: boolean; authenticated: boolean; version: string; reason: string; profileId?: string; profileName?: string; }
 export interface Run {
-  id: string; taskId: string; projectId: string; provider: Provider; model: string; status: RunStatus;
+  id: string; taskId: string; projectId: string; provider: Provider; model: string; effectiveModel: string | null; status: RunStatus;
   generation: number; requestId: string; checkpointId: string; startedAt: string; endedAt: string | null;
   pid: number | null; processStamp: string | null; sessionId: string | null; error: string | null;
   groupId: string | null; limit: LimitInfo | null; profileId?: string | null;
@@ -100,7 +100,7 @@ export function hasPassingChecks(detail: TaskDetail): boolean {
 }
 
 export interface Bootstrap {
-  schemaVersion: 6;
+  schemaVersion: 7;
   projects: Project[];
   tasks: Task[];
   execution: { available: boolean; reason: string };

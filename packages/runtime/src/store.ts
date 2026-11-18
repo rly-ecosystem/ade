@@ -22,7 +22,7 @@ export class Store {
     try {
       chmodSync(filename, 0o600);
       const version = Number((this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version);
-      if (version > 6) throw new Error('База создана более новой версией ADE. Требуется совместимая версия приложения.');
+      if (version > 7) throw new Error('База создана более новой версией ADE. Требуется совместимая версия приложения.');
       this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
       if (version === 0) this.db.exec(`
         BEGIN IMMEDIATE;
@@ -104,6 +104,9 @@ export class Store {
         ALTER TABLE execution_groups ADD COLUMN profileBindings TEXT NOT NULL DEFAULT '{}';
         ALTER TABLE runs ADD COLUMN profileId TEXT;
         PRAGMA user_version=6; COMMIT;`);
+      if (version < 7) this.db.exec(`BEGIN IMMEDIATE;
+        ALTER TABLE runs ADD COLUMN effectiveModel TEXT;
+        PRAGMA user_version=7; COMMIT;`);
       this.db.exec('CREATE INDEX IF NOT EXISTS runs_started ON runs(startedAt)');
     } catch (error) {
       this.db.close();
@@ -112,7 +115,10 @@ export class Store {
   }
 
   measuredRuns(since: Date): import('./device-history.js').RecordedRun[] {
-    return this.db.prepare('SELECT id, provider, profileId, sessionId, model, startedAt, usageData FROM runs WHERE startedAt >= ? AND usageData IS NOT NULL').all(since.toISOString()) as unknown as import('./device-history.js').RecordedRun[];
+    return this.db.prepare(`SELECT id, provider, profileId, sessionId, model, effectiveModel, startedAt, endedAt, usageData
+      FROM runs WHERE usageData IS NOT NULL AND (startedAt >= ? OR endedAt >= ?
+        OR (endedAt IS NULL AND status IN ('starting','running','awaiting_approval','stopping')))`)
+      .all(since.toISOString(), since.toISOString()) as unknown as import('./device-history.js').RecordedRun[];
   }
 
   insights(period: InsightPeriod, projectId: string | null) {
@@ -123,7 +129,7 @@ export class Store {
 
   bootstrap(): Bootstrap {
     return {
-      schemaVersion: 6,
+      schemaVersion: 7,
       projects: this.db.prepare('SELECT * FROM projects ORDER BY createdAt, id').all().map(row => this.decodeProject(row)),
       tasks: this.db.prepare('SELECT * FROM tasks ORDER BY updatedAt DESC, id').all().map(row => this.decodeTask(row)),
       execution: { available: true, reason: EXECUTION_UNAVAILABLE },
@@ -365,7 +371,7 @@ export class Store {
       const group = groupId || randomUUID();
       if (!groupId) this.db.prepare("INSERT INTO execution_groups (id,taskId,projectId,scopeRoot,status,startedAt,deadlineAt,reason,profileBindings) VALUES (?, ?, ?, ?, 'active', ?, ?, '',?)").run(group, taskId, project.id, scope, new Date().toISOString(), new Date(Date.now() + 30 * 60 * 1000).toISOString(), JSON.stringify(profiles));
       else this.db.prepare("UPDATE execution_groups SET status='active' WHERE id=? AND status='switching'").run(group);
-      const run: Run = { id: randomUUID(), taskId, projectId: project.id, provider, model, status: 'starting', generation: detail.runs.length + 1, requestId, checkpointId: checkpoint.id, startedAt: new Date().toISOString(), endedAt: null, pid: null, processStamp: null, sessionId: null, error: null, groupId: group, limit: null, role, artifactDigest: null, iteration: workflow?.iteration || 0, reviewVerdict: null, compact, promptBytes, summary: null, usage: null };
+      const run: Run = { id: randomUUID(), taskId, projectId: project.id, provider, model, effectiveModel: null, status: 'starting', generation: detail.runs.length + 1, requestId, checkpointId: checkpoint.id, startedAt: new Date().toISOString(), endedAt: null, pid: null, processStamp: null, sessionId: null, error: null, groupId: group, limit: null, role, artifactDigest: null, iteration: workflow?.iteration || 0, reviewVerdict: null, compact, promptBytes, summary: null, usage: null };
       this.db.prepare('INSERT INTO checkpoints VALUES (?, ?, ?)').run(checkpoint.id, taskId, JSON.stringify(checkpoint));
       this.db.prepare('INSERT INTO runs (id,taskId,projectId,provider,model,status,generation,requestId,checkpointId,startedAt,groupId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(run.id, taskId, project.id, provider, model, run.status, run.generation, requestId, checkpoint.id, run.startedAt, group);
       this.db.prepare('UPDATE runs SET role=?,iteration=?,compact=?,promptBytes=?,profileId=? WHERE id=?').run(role, run.iteration, Number(compact), promptBytes, profileId, run.id); run.profileId = profileId;
@@ -388,7 +394,10 @@ export class Store {
   }
 
   process(id: string, pid: number, stamp: string): void { this.db.prepare('UPDATE runs SET pid=?,processStamp=? WHERE id=?').run(pid, stamp, id); }
-  session(id: string, sessionId: string): void { this.db.prepare('UPDATE runs SET sessionId=? WHERE id=?').run(sessionId, id); }
+  session(id: string, sessionId: string, reportedModel?: unknown): void {
+    const effectiveModel = typeof reportedModel === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,199}$/.test(reportedModel) ? reportedModel : null;
+    this.db.prepare('UPDATE runs SET sessionId=?,effectiveModel=COALESCE(?,effectiveModel) WHERE id=?').run(sessionId, effectiveModel, id);
+  }
   usage(id: string, value: TokenUsage): void {
     const run = this.run(id); if (!ACTIVE_RUNS.includes(run.status)) return;
     if (run.usage && run.usage.input + run.usage.output > value.input + value.output) return;
